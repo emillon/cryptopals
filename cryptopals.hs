@@ -109,7 +109,7 @@ getAsB64Chunk = do
 getAsB64 :: WriterT [Word8] BitGet ()
 getAsB64 = do
     e <- lift isEmpty
-    when (not e) $ do
+    unless e $ do
         getAsB64Chunk
         getAsB64
 
