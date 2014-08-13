@@ -231,8 +231,13 @@ chall04 = TestCase $ do
 
 chall05 :: Test
 chall05 =
-    "Challenge 04" ~: map (uncurry3 tc)
+    "Challenge 05" ~: map (uncurry3 tc)
         [ (B.empty, B.empty, "")
+        , ( string2bs "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal"
+          , string2bs "ICE"
+          , "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272"
+           ++ "a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"
+          )
         ]
         where
             tc input key spec =
@@ -240,7 +245,9 @@ chall05 =
 
 xorBufferRepeat :: B.ByteString -> B.ByteString -> B.ByteString
 xorBufferRepeat input key =
-    input
+    B.pack $ map (\ (i, w) -> xor w (B.index key (i `mod` n))) $ zip [0..] $ B.unpack input
+        where
+            n = B.length key
 
 main :: IO ()
 main =
