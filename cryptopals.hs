@@ -229,6 +229,24 @@ chall04 = TestCase $ do
     let (n, (key, _, _)) = maximumBy (comparing (snd3 . snd)) plains
     assertEqual "Challenge 04" (171, 53) (n, key)
 
+chall05 :: Test
+chall05 =
+    "Challenge 04" ~: map (uncurry3 tc)
+        [ (B.empty, B.empty, "")
+        ]
+        where
+            tc input key spec =
+                spec ~=? encodeHex (xorBufferRepeat input key)
+
+xorBufferRepeat :: B.ByteString -> B.ByteString -> B.ByteString
+xorBufferRepeat input key =
+    input
+
 main :: IO ()
 main =
-    void $ runTestTT $ TestList [chall01, chall02, chall03, chall04]
+    void $ runTestTT $ TestList
+        [ chall01
+        , chall02
+        , chall03
+        , chall05
+        ]
