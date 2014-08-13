@@ -1,5 +1,6 @@
 import Control.Monad
 import Data.Binary.Strict.BitGet
+import Data.Char
 import Data.Word
 import Test.HUnit
 
@@ -134,13 +135,38 @@ tc :: String -> String -> Test
 tc input spec =
     spec ~=? encodeB64 (hexToB64 (decodeHex input))
 
+toHex :: String -> String
+toHex =
+    concatMap encodeHexPair
+
+encodeHexPair :: Char -> String
+encodeHexPair c = [h, l] where
+    h = encodeHexChar q
+    l = encodeHexChar r
+    (q, r) = ord c `quotRem` 0x10
+
+encodeHexChar :: Int -> Char
+encodeHexChar 0x0 = '0'
+encodeHexChar 0x1 = '1'
+encodeHexChar 0x2 = '2'
+encodeHexChar 0x3 = '3'
+encodeHexChar 0x4 = '4'
+encodeHexChar 0x5 = '5'
+encodeHexChar 0x6 = '6'
+encodeHexChar 0x7 = '7'
+encodeHexChar 0x8 = '8'
+encodeHexChar 0x9 = '9'
+encodeHexChar 0xa = 'a'
+encodeHexChar 0xb = 'b'
+encodeHexChar 0xc = 'c'
+encodeHexChar 0xd = 'd'
+encodeHexChar 0xe = 'e'
+encodeHexChar 0xf = 'f'
+encodeHexChar _ = error "encodeHexChar"
+
 main :: IO ()
 main =
     void $ runTestTT $ TestList $ map (uncurry tc)
-        [ ( ""
-          , ""
-          )
-        , ( "4d616e"
-          , "TWFu"
-          )
+        [ ("" , "")
+        , (toHex "Man" , "TWFu")
         ]
