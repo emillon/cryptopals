@@ -249,6 +249,28 @@ xorBufferRepeat input key =
         where
             n = B.length key
 
+chall06 :: Test
+chall06 =
+    "Challenge 06" ~: map (uncurry3 hammingTc)
+        [ ( string2bs "xyz"
+          , string2bs "xyz"
+          , 0)
+        , ( string2bs "this is a test"
+          , string2bs "wokka wokka!!!"
+          , 37
+          )
+        ]
+    where
+        hammingTc a b spec =
+            spec ~=? hammingDistance a b
+
+hammingDistance :: B.ByteString -> B.ByteString -> Int
+hammingDistance a b = sum $ B.zipWith hammingDistanceWord8 a b
+
+hammingDistanceWord8 :: Word8 -> Word8 -> Int
+hammingDistanceWord8 a b =
+    popCount $ a `xor` b
+
 main :: IO ()
 main =
     void $ runTestTT $ TestList
@@ -256,4 +278,5 @@ main =
         , chall02
         , chall03
         , chall05
+        , chall06
         ]
