@@ -81,9 +81,9 @@ encodeHexPair c = [h, l] where
     l = intToDigit r
     (q, r) = ord c `quotRem` 0x10
 
-main :: IO ()
-main =
-    void $ runTestTT $ TestList $ map (uncurry tc)
+chall01 :: Test
+chall01 =
+    "Challenge 01" ~: map (uncurry tc)
         [ ("" , "")
         , (toHex "Man" , "TWFu")
         , (toHex "pleasure.", "cGxlYXN1cmUu")
@@ -93,3 +93,7 @@ main =
           , "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"
           )
         ]
+
+main :: IO ()
+main =
+    void $ runTestTT chall01
