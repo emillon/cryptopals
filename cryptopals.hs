@@ -83,29 +83,25 @@ hexToB64 :: B.ByteString -> B.ByteString
 hexToB64 bs =
     either error B.pack $ runBitGet bs getAsB64
 
-getAsB64 :: BitGet [Word8]
-getAsB64 = do
+getAsB64Chunk :: BitGet [Word8]
+getAsB64Chunk = do
     n <- remaining
-    case n of
-        0 -> return []
+    case () of
         _ | n >= 24 -> do
             a <- get6
             b <- get6
             c <- get6
             d <- get6
-            r <- getAsB64
-            return $ enc a : enc b : enc c : enc d : r
+            return $ map enc [a, b, c, d]
         _ | n >= 16 -> do
             a <- get6
             b <- get6
             c <- get4
-            r <- getAsB64
-            return $ enc a : enc b : enc c : pad : r
+            return $ map enc [a, b, c] ++ [pad]
         _ | n >= 8 -> do
             a <- get6
             b <- get2
-            r <- getAsB64
-            return $ enc a : enc b : pad : pad : r
+            return $ map enc [a, b] ++ [pad, pad]
         _ -> error $ "getAsB64 : " ++ show n
     where
         get2 = do
@@ -119,6 +115,16 @@ getAsB64 = do
         enc = fromIntegral . ord . encodeB64Word
         pad :: Word8
         pad = fromIntegral $ ord '='
+
+getAsB64 :: BitGet [Word8]
+getAsB64 = do
+    e <- isEmpty
+    if e
+        then return []
+        else do
+            c <- getAsB64Chunk
+            r <- getAsB64
+            return $ c ++ r
 
 decodeHex :: String -> B.ByteString
 decodeHex s =
