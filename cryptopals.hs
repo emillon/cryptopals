@@ -1,4 +1,5 @@
 import Control.Monad
+import Control.Monad.Writer
 import Data.Binary.Strict.BitGet
 import Data.Char
 import Data.Word
@@ -81,50 +82,36 @@ encodeB64Word n = error $ "encodeB64Word : " ++ show n
 
 hexToB64 :: B.ByteString -> B.ByteString
 hexToB64 bs =
-    either error B.pack $ runBitGet bs getAsB64
+    either error B.pack $ runBitGet bs $ execWriterT getAsB64
 
-getAsB64Chunk :: BitGet [Word8]
+getAsB64Chunk :: WriterT [Word8] BitGet ()
 getAsB64Chunk = do
-    n <- remaining
+    n <- lift remaining
     case () of
-        _ | n >= 24 -> do
-            a <- get6
-            b <- get6
-            c <- get6
-            d <- get6
-            return $ map enc [a, b, c, d]
-        _ | n >= 16 -> do
-            a <- get6
-            b <- get6
-            c <- get4
-            return $ map enc [a, b, c] ++ [pad]
-        _ | n >= 8 -> do
-            a <- get6
-            b <- get2
-            return $ map enc [a, b] ++ [pad, pad]
+        _ | n >= 24 -> get6 >> get6 >> get6 >> get6
+        _ | n >= 16 -> get6 >> get6 >> get4 >> tpad
+        _ | n >=  8 -> get6 >> get2 >> tpad >> tpad
         _ -> error $ "getAsB64 : " ++ show n
     where
         get2 = do
-            x <- getAsWord8 2
-            return $ x * 16
+            x <- lift $ getAsWord8 2
+            tell [enc (x * 16)]
         get4 = do
-            x <- getAsWord8 4
-            return $ x * 4
-        get6 = getAsWord8 6
+            x <- lift $ getAsWord8 4
+            tell [enc (x * 4)]
+        get6 = do
+            x <- lift $ getAsWord8 6
+            tell [enc x]
         enc :: Word8 -> Word8
         enc = fromIntegral . ord . encodeB64Word
-        pad :: Word8
-        pad = fromIntegral $ ord '='
+        tpad = tell [fromIntegral $ ord '=']
 
-getAsB64 :: BitGet [Word8]
+getAsB64 :: WriterT [Word8] BitGet ()
 getAsB64 = do
-    e <- isEmpty
-    if e
-        then return []
-        else do
-            c <- getAsB64Chunk
-            r <- getAsB64
-            return $ c ++ r
+    e <- lift isEmpty
+    when (not e) $ do
+        getAsB64Chunk
+        getAsB64
 
 decodeHex :: String -> B.ByteString
 decodeHex s =
