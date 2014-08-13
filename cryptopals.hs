@@ -288,6 +288,12 @@ tryKeySize n bs =
             a = B.take n bs
             b = B.take n $ B.drop n bs
 
+scoreKeySize :: Int -> B.ByteString -> Float
+scoreKeySize ks b =
+    fromIntegral dist / fromIntegral ks
+        where
+            dist = tryKeySize ks b
+
 decodeBase64 :: String -> B.ByteString
 decodeBase64 =
     B.concat . map (B.pack . fourToThree) . fourByFour
@@ -328,11 +334,46 @@ findInArray :: (Ix i, Eq e) => Array i e -> e -> Maybe i
 findInArray a x =
     lookup x $ map swap $ assocs a
 
+keysizeCandidates :: B.ByteString -> [Int]
+keysizeCandidates b =
+    take 4 $ map fst $ reverse $ sortBy (comparing snd) $ map (\ ks -> (ks, scoreKeySize ks b)) [2..40]
+
 chall06ex :: IO ()
 chall06ex = do
     c <- concat <$> lines <$> readFile "challenge-data/6.txt"
     let d = decodeBase64 c
-    print d
+    forM_ (keysizeCandidates d) $ \ks -> do
+        let key = B.pack $ breakRepeatXor ks d
+        putStrLn $ "ks = " ++ show ks
+        print key
+        let plain = xorBufferRepeat d key
+        print plain
+
+breakRepeatXor :: Int -> B.ByteString -> [Word8]
+breakRepeatXor ks b =
+    map (\ tc -> fst3 (findXorKey tc)) tcs
+        where
+            cs = chunksOfSize ks b
+            tcs = transposeChunks cs
+
+chunksOfSize :: Int -> B.ByteString -> [B.ByteString]
+chunksOfSize n b | B.length b <= n = [b]
+chunksOfSize n b =
+    h:chunksOfSize n t
+        where
+            (h, t) = B.splitAt n b
+
+transposeChunks :: [B.ByteString] -> [B.ByteString]
+transposeChunks cs =
+    map (\ i -> B.pack $ map (\ c -> index0 c i) cs) [0..m - 1]
+        where
+            m = B.length (head cs)
+
+index0 :: B.ByteString -> Int -> Word8
+index0 b i =
+    if i < B.length b
+        then B.index b i
+        else 0
 
 main :: IO ()
 main =
