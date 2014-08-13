@@ -6,12 +6,11 @@ import Test.HUnit
 
 import qualified Data.ByteString as B
 
-encodeB64 :: B.ByteString -> String
-encodeB64 bs =
-    B.foldr go [] bs
-        where
-            go w l =
-                encodeB64Word w : l
+bs2string :: B.ByteString -> String
+bs2string = map toChar . B.unpack
+    where
+        toChar :: Word8 -> Char
+        toChar = toEnum . fromEnum
 
 encodeB64Word :: Word8 -> Char
 encodeB64Word 0  = 'A'
@@ -78,7 +77,7 @@ encodeB64Word 60 = '8'
 encodeB64Word 61 = '9'
 encodeB64Word 62 = '+'
 encodeB64Word 63 = '/'
-encodeB64Word _ = error "encodeB64Word"
+encodeB64Word n = error $ "encodeB64Word : " ++ show n
 
 hexToB64 :: B.ByteString -> B.ByteString
 hexToB64 bs =
@@ -89,12 +88,37 @@ getAsB64 = do
     n <- remaining
     case n of
         0 -> return []
-        _ | n >= 6 -> do
-            d <- getAsWord8 6
+        _ | n >= 24 -> do
+            a <- get6
+            b <- get6
+            c <- get6
+            d <- get6
             r <- getAsB64
-            return $ d : r
+            return $ enc a : enc b : enc c : enc d : r
+        _ | n >= 16 -> do
+            a <- get6
+            b <- get6
+            c <- get4
+            r <- getAsB64
+            return $ enc a : enc b : enc c : pad : r
+        _ | n >= 8 -> do
+            a <- get6
+            b <- get2
+            r <- getAsB64
+            return $ enc a : enc b : pad : pad : r
         _ -> error $ "getAsB64 : " ++ show n
-
+    where
+        get2 = do
+            x <- getAsWord8 2
+            return $ x * 16
+        get4 = do
+            x <- getAsWord8 4
+            return $ x * 4
+        get6 = getAsWord8 6
+        enc :: Word8 -> Word8
+        enc = fromIntegral . ord . encodeB64Word
+        pad :: Word8
+        pad = fromIntegral $ ord '='
 
 decodeHex :: String -> B.ByteString
 decodeHex s =
@@ -133,7 +157,7 @@ decodeHexChar c = error $ "decodeHexChar: " ++ show c
 
 tc :: String -> String -> Test
 tc input spec =
-    spec ~=? encodeB64 (hexToB64 (decodeHex input))
+    spec ~=? bs2string (hexToB64 (decodeHex input))
 
 toHex :: String -> String
 toHex =
@@ -169,4 +193,7 @@ main =
     void $ runTestTT $ TestList $ map (uncurry tc)
         [ ("" , "")
         , (toHex "Man" , "TWFu")
+        , (toHex "pleasure.", "cGxlYXN1cmUu")
+        , (toHex "leasure.", "bGVhc3VyZS4=")
+        , (toHex "easure.", "ZWFzdXJlLg==")
         ]
