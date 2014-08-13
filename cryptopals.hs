@@ -2,6 +2,7 @@ import Control.Monad
 import Control.Monad.Writer
 import Data.Array
 import Data.Binary.Strict.BitGet
+import Data.Bits
 import Data.Char
 import Data.Word
 import Test.HUnit
@@ -55,6 +56,12 @@ getAsB64 = do
 decodeHex :: String -> B.ByteString
 decodeHex = B.pack . map (uncurry decodeHexPair) . twoByTwo
 
+encodeHex :: B.ByteString -> String
+encodeHex b = B.foldr go "" b
+    where
+        go w s =
+            encodeHexPair w ++ s
+
 twoByTwo :: [a] -> [(a, a)]
 twoByTwo [] = []
 twoByTwo (a:b:l) = (a, b):twoByTwo l
@@ -67,19 +74,22 @@ decodeHexPair h l =
 decodeHexChar :: Char -> Word8
 decodeHexChar = fromIntegral . digitToInt
 
-tc :: String -> String -> Test
-tc input spec =
-    spec ~=? bs2string (hexToB64 (decodeHex input))
-
 toHex :: String -> String
 toHex =
-    concatMap encodeHexPair
+    concatMap encodeHexPairChar
 
-encodeHexPair :: Char -> String
-encodeHexPair c = [h, l] where
-    h = intToDigit q
-    l = intToDigit r
-    (q, r) = ord c `quotRem` 0x10
+encodeHexPairChar :: Char -> String
+encodeHexPairChar = encodeHexPair . fromIntegral . ord
+
+encodeHexPair :: Word8 -> String
+encodeHexPair w = [h, l] where
+    h = intToDigit $ fromIntegral q
+    l = intToDigit $ fromIntegral r
+    (q, r) = w `quotRem` 0x10
+
+xorBuffer :: B.ByteString -> B.ByteString -> B.ByteString
+xorBuffer a b =
+    B.pack $ B.zipWith xor a b
 
 chall01 :: Test
 chall01 =
@@ -93,7 +103,26 @@ chall01 =
           , "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"
           )
         ]
+    where
+        tc input spec =
+            spec ~=? bs2string (hexToB64 (decodeHex input))
+
+chall02 :: Test
+chall02 =
+    "Challenge 02" ~: map (uncurry3 tc)
+        [ ("", "", "")
+        , ( "746865206b696420646f6e277420706c6179"
+          , "1c0111001f010100061a024b53535009181c"
+          , "686974207468652062756c6c277320657965"
+          )
+        ]
+    where
+        tc plain key spec =
+            spec ~=? encodeHex (xorBuffer (decodeHex plain) (decodeHex key))
+
+uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+uncurry3 f (x, y, z) = f x y z
 
 main :: IO ()
 main =
-    void $ runTestTT chall01
+    void $ runTestTT $ TestList [chall01, chall02]
