@@ -7,6 +7,7 @@ import Data.Bits
 import Data.Char
 import Data.List
 import Data.Ord
+import Data.Tuple
 import Data.Word
 import Test.HUnit
 
@@ -22,10 +23,12 @@ string2bs = B.pack . map (toEnum . fromEnum)
 encodeB64Word :: Word8 -> Char
 encodeB64Word n =
     if n < 64
-        then a ! n
+        then base64Table ! n
         else error $ "encodeB64Word : " ++ show n
-    where
-        a = listArray (0, 63) $ ['A'..'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ ['+' , '/']
+
+base64Table :: Array Word8 Char
+base64Table =
+    listArray (0, 63) $ ['A'..'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ ['+' , '/']
 
 hexToB64 :: B.ByteString -> B.ByteString
 hexToB64 bs =
@@ -260,9 +263,16 @@ chall06 =
           , 37
           )
         ]
+    ++ map (uncurry decode64tc)
+        [ ("cGxlYXN1cmUu", "pleasure.")
+        , ("bGVhc3VyZS4=", "leasure.")
+        , ("ZWFzdXJlLg==", "easure.")
+        ]
     where
         hammingTc a b spec =
             spec ~=? hammingDistance a b
+        decode64tc input spec =
+            spec ~=? bs2string (decodeBase64 input)
 
 hammingDistance :: B.ByteString -> B.ByteString -> Int
 hammingDistance a b = sum $ B.zipWith hammingDistanceWord8 a b
@@ -270,6 +280,59 @@ hammingDistance a b = sum $ B.zipWith hammingDistanceWord8 a b
 hammingDistanceWord8 :: Word8 -> Word8 -> Int
 hammingDistanceWord8 a b =
     popCount $ a `xor` b
+
+tryKeySize :: Int -> B.ByteString -> Int
+tryKeySize n bs =
+    hammingDistance a b
+        where
+            a = B.take n bs
+            b = B.take n $ B.drop n bs
+
+decodeBase64 :: String -> B.ByteString
+decodeBase64 =
+    B.concat . map (B.pack . fourToThree) . fourByFour
+
+fourByFour :: [a] -> [(a, a, a, a)]
+fourByFour [] = []
+fourByFour (a:b:c:d:r) = (a, b, c, d):fourByFour r
+fourByFour _ = error "fourByFour"
+
+fourToThree :: (Char, Char, Char, Char) -> [Word8]
+fourToThree (a, b, '=', '=') =
+    take 1 $ fourToThreeW (findb64 a, findb64 b, 0, 0)
+fourToThree (a, b, c, '=') =
+    take 2 $ fourToThreeW (findb64 a, findb64 b, findb64 c, 0)
+fourToThree (a, b, c, d) =
+    fourToThreeW (findb64 a, findb64 b, findb64 c, findb64 d)
+
+fourToThreeW :: (Word8, Word8, Word8, Word8) -> [Word8]
+fourToThreeW (a, b, c, d) = [x, y, z]
+    where
+        -- This is not a guitar tab.
+        -- | x x x x x x x x|y y y y y y y y|z z z z z z z z
+        -- | a a a a a a b b|b b b b c c c c|c c d d d d d d
+        -- |      a      bh | bl       ch   | cl     d
+        x = a * 4 + bh
+        y = bl * 16 + ch
+        z = cl * 64 + d
+        (bh, bl) = b `quotRem` 16
+        (ch, cl) = c `quotRem` 4
+
+findb64 :: Char -> Word8
+findb64 c =
+    case findInArray base64Table c of
+        Nothing -> error $ "findb64 : " ++ show c
+        Just x -> x
+
+findInArray :: (Ix i, Eq e) => Array i e -> e -> Maybe i
+findInArray a x =
+    lookup x $ map swap $ assocs a
+
+chall06ex :: IO ()
+chall06ex = do
+    c <- concat <$> lines <$> readFile "challenge-data/6.txt"
+    let d = decodeBase64 c
+    print d
 
 main :: IO ()
 main =
