@@ -1,3 +1,4 @@
+import Control.Applicative
 import Control.Monad
 import Control.Monad.Writer
 import Data.Array
@@ -139,7 +140,7 @@ toCommonLetter :: Word8 -> Char
 toCommonLetter = toLower . chr . fromIntegral
 
 englishFreq :: Freq
-englishFreq = M.fromList
+englishFreq = M.fromList $
     [ (' ', 0.19182)
     , ('e', 0.13000)
     , ('t', 0.09056)
@@ -168,6 +169,7 @@ englishFreq = M.fromList
     , ('q', 0.00095)
     , ('z', 0.00074)
     ]
+    ++ map (\ w -> (w, -0.1)) (['\000'..'\031'] ++ ['\127'..'\255'])
 
 freq :: B.ByteString -> Freq
 freq b =
@@ -204,10 +206,6 @@ findXorKey b =
                 let plain = xorBuffer b (makeKey k) in
                 (k, englishness plain, plain)
 
-isPrintBS :: B.ByteString -> Bool
-isPrintBS b =
-    B.all (isPrint . chr . fromIntegral) b
-
 snd3 :: (a, b, c) -> b
 snd3 (_, y, _) = y
 
@@ -224,6 +222,13 @@ chall03 =
 chall03text :: B.ByteString
 chall03text = decodeHex "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736"
 
+chall04 :: Test
+chall04 = TestCase $ do
+    ciphers <- lines <$> readFile "challenge-data/4.txt"
+    let plains = map (\ (n, cipher) -> (n, (findXorKey $ decodeHex cipher))) $ zip [1::Int ..] ciphers
+    let (n, (key, _, _)) = maximumBy (comparing (snd3 . snd)) plains
+    assertEqual "Challenge 04" (171, 53) (n, key)
+
 main :: IO ()
 main =
-    void $ runTestTT $ TestList [chall01, chall02, chall03]
+    void $ runTestTT $ TestList [chall01, chall02, chall03, chall04]
