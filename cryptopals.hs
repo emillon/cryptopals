@@ -11,10 +11,7 @@ import qualified Data.ByteString as B
 import AES
 import Base64
 import LetterFreq
-
-xorBuffer :: B.ByteString -> B.ByteString -> B.ByteString
-xorBuffer a b =
-    B.pack $ B.zipWith xor a b
+import XOR
 
 chall01 :: Test
 chall01 =
