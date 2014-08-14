@@ -7,9 +7,7 @@ module Base64 ( decodeHex
               , hexToB64
               ) where
 
-import Control.Monad.Writer
 import Data.Array
-import Data.Binary.Strict.BitGet
 import Data.Char
 import Data.Word
 import Data.Tuple
@@ -61,37 +59,42 @@ base64Table =
     listArray (0, 63) $ ['A'..'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ ['+' , '/']
 
 hexToB64 :: B.ByteString -> B.ByteString
-hexToB64 bs =
-    either error B.pack $ runBitGet bs $ execWriterT getAsB64
+hexToB64 =
+    B.concat . map threeToFour . threeByThree . B.unpack
 
-getAsB64Chunk :: WriterT [Word8] BitGet ()
-getAsB64Chunk = do
-    n <- lift remaining
-    case () of
-        _ | n >= 24 -> get6 >> get6 >> get6 >> get6
-        _ | n >= 16 -> get6 >> get6 >> get4 >> tpad
-        _ | n >=  8 -> get6 >> get2 >> tpad >> tpad
-        _ -> error $ "getAsB64 : " ++ show n
-    where
-        get2 = do
-            x <- lift $ getAsWord8 2
-            tell [enc (x * 16)]
-        get4 = do
-            x <- lift $ getAsWord8 4
-            tell [enc (x * 4)]
-        get6 = do
-            x <- lift $ getAsWord8 6
-            tell [enc x]
-        enc :: Word8 -> Word8
-        enc = fromIntegral . ord . encodeB64Word
-        tpad = tell [fromIntegral $ ord '=']
+data ChunkOfThree a = C3 a a a
+                    | C2 a a
+                    | C1 a
 
-getAsB64 :: WriterT [Word8] BitGet ()
-getAsB64 = do
-    e <- lift isEmpty
-    unless e $ do
-        getAsB64Chunk
-        getAsB64
+threeByThree :: [a] -> [ChunkOfThree a]
+threeByThree [] = []
+threeByThree (x:y:z:r) = (C3 x y z):threeByThree r
+threeByThree [x,y] = [C2 x y]
+threeByThree [x] = [C1 x]
+
+threeToFour :: ChunkOfThree Word8 -> B.ByteString
+threeToFour (C3 x y z) = B.pack $ threeToFourW x y z
+threeToFour (C2 x y) = B.pack $ take 3 (threeToFourW x y 0) ++ [b64pad]
+threeToFour (C1 x) = B.pack $ take 2 (threeToFourW x 0 0) ++ [b64pad, b64pad]
+
+b64pad :: Word8
+b64pad = fromIntegral $ ord '='
+
+threeToFourW :: Word8 -> Word8 -> Word8 -> [Word8]
+threeToFourW x y z =
+    map enc [a, b, c, d]
+        where
+            -- |    xh       xl    yh      yl     zh   zl
+            -- | x x x x x x x x|y y y y y y y y|z z z z z z z z
+            -- | a a a a a a b b|b b b b c c c c|c c d d d d d d
+            a = xh
+            b = xl * 16 + yh
+            c = yl * 4 + zh
+            d = zl
+            (xh, xl) = x `quotRem` 4
+            (yh, yl) = y `quotRem` 16
+            (zh, zl) = z `quotRem` 64
+            enc = fromIntegral . ord . encodeB64Word
 
 encodeB64Word :: Word8 -> Char
 encodeB64Word n =
