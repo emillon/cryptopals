@@ -11,6 +11,7 @@ import qualified Data.ByteString as B
 import AES
 import Base64
 import LetterFreq
+import Misc
 import XOR
 
 chall01 :: Test
@@ -51,8 +52,7 @@ findXorKey b =
         where
             n = B.length b
             makeKey k = B.replicate n k
-            f k =
-                let plain = xorBuffer b (makeKey k) in
+            f k = let plain = xorBuffer b (makeKey k) in
                 (k, englishness plain, plain)
 
 snd3 :: (a, b, c) -> b
@@ -171,13 +171,6 @@ breakRepeatXor b ks =
             keyWords = map (\ tc -> fst3 (findXorKey tc)) tcs
             key = B.pack keyWords
 
-chunksOfSize :: Int -> B.ByteString -> [B.ByteString]
-chunksOfSize n b | B.length b <= n = [b]
-chunksOfSize n b =
-    h:chunksOfSize n t
-        where
-            (h, t) = B.splitAt n b
-
 transposeChunks :: [B.ByteString] -> [B.ByteString]
 transposeChunks cs =
     map (\ i -> B.pack $ map (\ c -> index0 c i) cs) [0..m - 1]
@@ -192,8 +185,10 @@ index0 b i =
 
 chall07ex :: IO ()
 chall07ex = do
-    d <- readFileBase64 "challenge-data/7.txt"
-    print d
+    cipher <- readFileBase64 "challenge-data/7.txt"
+    let key = string2bs "YELLOW SUBMARINE"
+        plain = aes128decryptECB key cipher
+    print plain
 
 main :: IO ()
 main =

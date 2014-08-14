@@ -10,6 +10,7 @@ import Test.HUnit
 import qualified Data.ByteString as B
 
 import Base64
+import Misc
 import XOR
 
 aesTests :: Test
@@ -338,7 +339,11 @@ stateSplit b =
             chunk n = B.take 4 $ B.drop (4*n) b
 
 aes128decryptECB :: B.ByteString -> B.ByteString -> B.ByteString
-aes128decryptECB cipher key =
+aes128decryptECB key cipher =
+    B.concat $ map (aes128decryptBlock key) $ chunksOfSize 16 cipher
+
+aes128decryptBlock :: B.ByteString -> B.ByteString -> B.ByteString
+aes128decryptBlock key cipher =
         cipher
     >>> addRoundKeyRev finalRoundKey
     >>> shiftRowsRev
