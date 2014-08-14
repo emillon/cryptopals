@@ -4,6 +4,7 @@ import Data.Bits
 import Data.List
 import Data.Ord
 import Data.Word
+import System.Random
 import Test.HUnit
 
 import qualified Data.ByteString as B
@@ -234,6 +235,27 @@ chall10 = "Challenge 10" ~: do
         iv = B.replicate 16 0
         plain = aes128decryptCBC key iv cipher
     assert $ string2bs "Let the witch doctor" `B.isInfixOf` plain
+
+randomBytes :: Int -> IO B.ByteString
+randomBytes n = do
+    bytes <- forM [1..n] $ \ _ -> randomIO
+    return $ B.pack bytes
+
+aesRandomMode :: B.ByteString -> IO B.ByteString
+aesRandomMode input = do
+    modeIsAES <- randomIO
+    key <- randomBytes 16
+    nbefore <- randomRIO (5, 10)
+    nafter <- randomRIO (5, 10)
+    before <- randomBytes nbefore
+    after <- randomBytes nafter
+    let plain = B.concat [before, input, after]
+    if modeIsAES
+        then
+            return $ aes128cryptECB key plain
+        else do
+            iv <- randomBytes 16
+            return $ aes128cryptCBC key iv plain
 
 main :: IO ()
 main = do
