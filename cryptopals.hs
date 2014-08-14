@@ -7,6 +7,7 @@ import Data.Word
 import Test.HUnit
 
 import qualified Data.ByteString as B
+import qualified Data.Map as M
 
 import AES
 import Base64
@@ -181,6 +182,19 @@ chall07 = "Challenge 07" ~: do
         plain = aes128decryptECB key cipher
     assert $ string2bs "Play that funky music" `B.isInfixOf` plain
 
+isECB :: B.ByteString -> Bool
+isECB =
+    any (> 1) . M.elems . foldr go M.empty . chunksOfSize 16
+        where
+            go chunk m =
+                M.insertWith (+) chunk (1::Int) m
+
+chall08 :: Test
+chall08 = "Challenge 08" ~: do
+    c <- readFile "challenge-data/8.txt"
+    let r = map fst $ filter (isECB . snd) $ zip [0::Int ..] $ map decodeBase64 $ lines c
+    assert $ r == [132]
+
 main :: IO ()
 main = do
     void $ runTestTT $ TestList
@@ -191,4 +205,5 @@ main = do
         , chall06
         , aesTests
         , chall07
+        , chall08
         ]

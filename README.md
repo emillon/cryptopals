@@ -11,7 +11,7 @@ http://cryptopals.com/
   - [X] Implement repeating-key XOR
   - [X] Break repeating-key XOR
   - [X] AES in ECB mode
-  - [ ] Detect AES in ECB mode
+  - [X] Detect AES in ECB mode
 
 ## Set 2
 
