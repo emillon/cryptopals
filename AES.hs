@@ -79,9 +79,6 @@ scheduleTests = "AES Key Schedule" ~: map (uncurry tc)
         tc input spec =
             map unHex spec ~=? keySchedule (unHex input)
 
-unHex :: String -> B.ByteString
-unHex = decodeHex . concat . words
-
 mixTests :: Test
 mixTests = TestList
     [ "AES MixColumns Fwd" ~: map (uncurry tcFwd) tcs

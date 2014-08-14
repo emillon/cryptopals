@@ -195,6 +195,38 @@ chall08 = "Challenge 08" ~: do
     let r = map fst $ filter (isECB . snd) $ zip [0::Int ..] $ map decodeBase64 $ lines c
     assert $ r == [132]
 
+chall09 :: Test
+chall09 = "Challenge 09" ~: map (uncurry tc)
+    [ ("", "")
+    , ("A"               , "41 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f")
+    , ("AA"              , "41 41 0e 0e 0e 0e 0e 0e 0e 0e 0e 0e 0e 0e 0e 0e")
+    , ("AAA"             , "41 41 41 0d 0d 0d 0d 0d 0d 0d 0d 0d 0d 0d 0d 0d")
+    , ("AAAA"            , "41 41 41 41 0c 0c 0c 0c 0c 0c 0c 0c 0c 0c 0c 0c")
+    , ("AAAAB"           , "41 41 41 41 42 0b 0b 0b 0b 0b 0b 0b 0b 0b 0b 0b")
+    , ("AAAABB"          , "41 41 41 41 42 42 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a")
+    , ("AAAABBB"         , "41 41 41 41 42 42 42 09 09 09 09 09 09 09 09 09")
+    , ("AAAABBBB"        , "41 41 41 41 42 42 42 42 08 08 08 08 08 08 08 08")
+    , ("AAAABBBBC"       , "41 41 41 41 42 42 42 42 43 07 07 07 07 07 07 07")
+    , ("AAAABBBBCC"      , "41 41 41 41 42 42 42 42 43 43 06 06 06 06 06 06")
+    , ("AAAABBBBCCC"     , "41 41 41 41 42 42 42 42 43 43 43 05 05 05 05 05")
+    , ("AAAABBBBCCCC"    , "41 41 41 41 42 42 42 42 43 43 43 43 04 04 04 04")
+    , ("AAAABBBBCCCCD"   , "41 41 41 41 42 42 42 42 43 43 43 43 44 03 03 03")
+    , ("AAAABBBBCCCCDD"  , "41 41 41 41 42 42 42 42 43 43 43 43 44 44 02 02")
+    , ("AAAABBBBCCCCDDD" , "41 41 41 41 42 42 42 42 43 43 43 43 44 44 44 01")
+    , ("AAAABBBBCCCCDDDD", "41 41 41 41 42 42 42 42 43 43 43 43 44 44 44 44")
+    ]
+    where
+        tc input spec =
+            unHex spec ~=? padPkcs7 (string2bs input)
+
+padPkcs7 :: B.ByteString -> B.ByteString
+padPkcs7 b =
+    B.append b $ B.replicate n (fromIntegral n)
+        where
+            n = case B.length b `mod` 16 of
+                0 -> 0
+                l -> 16 - l
+
 main :: IO ()
 main = do
     void $ runTestTT $ TestList
@@ -206,4 +238,5 @@ main = do
         , aesTests
         , chall07
         , chall08
+        , chall09
         ]

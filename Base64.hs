@@ -1,6 +1,7 @@
 module Base64 ( decodeHex
               , encodeHex
               , toHex
+              , unHex
               , bs2string
               , string2bs
               , decodeBase64
@@ -18,6 +19,9 @@ import qualified Data.ByteString as B
 
 decodeHex :: String -> B.ByteString
 decodeHex = B.pack . map (uncurry decodeHexPair) . twoByTwo
+
+unHex :: String -> B.ByteString
+unHex = decodeHex . concat . words
 
 encodeHex :: B.ByteString -> String
 encodeHex b = B.foldr go "" b
