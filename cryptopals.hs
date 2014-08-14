@@ -43,9 +43,6 @@ chall02 =
         tc plain key spec =
             spec ~=? encodeHex (xorBuffer (decodeHex plain) (decodeHex key))
 
-uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
-uncurry3 f (x, y, z) = f x y z
-
 findXorKey :: B.ByteString -> (Word8, Float, B.ByteString)
 findXorKey b =
     maximumBy (comparing snd3) $ map f [0..]
@@ -54,12 +51,6 @@ findXorKey b =
             makeKey k = B.replicate n k
             f k = let plain = xorBuffer b (makeKey k) in
                 (k, englishness plain, plain)
-
-snd3 :: (a, b, c) -> b
-snd3 (_, y, _) = y
-
-fst3 :: (a, b, c) -> a
-fst3 (x, _, _) = x
 
 chall03 :: Test
 chall03 =
