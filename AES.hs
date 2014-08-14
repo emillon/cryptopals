@@ -2,6 +2,7 @@ module AES ( aesTests
            , aes128decryptECB
            , aes128decryptCBC
            , aes128cryptECB
+           , aes128cryptCBC
            ) where
 
 import Control.Monad.RWS hiding (state)
@@ -329,6 +330,20 @@ ecbHelper fblock key input =
 aes128cryptECB :: B.ByteString -> B.ByteString -> B.ByteString
 aes128cryptECB key plain =
     ecbHelper aes128cryptBlock key plain
+
+aes128cryptCBC :: B.ByteString -> B.ByteString -> B.ByteString -> B.ByteString
+aes128cryptCBC key iv plain =
+    thr3 $ runRWS m key iv
+        where
+            m = mapM_ aes128cryptCBCblock $ chunksOfSize 16 plain
+
+aes128cryptCBCblock :: B.ByteString -> RWS B.ByteString B.ByteString B.ByteString ()
+aes128cryptCBCblock block = do
+    key <- ask
+    state <- get
+    let out = aes128cryptBlock key (xorBuffer block state)
+    tell out
+    put out
 
 aes128decryptCBC :: B.ByteString -> B.ByteString -> B.ByteString -> B.ByteString
 aes128decryptCBC key iv cipher =
