@@ -1,6 +1,7 @@
 module AES ( aesTests
            , aes128decryptECB
            , aes128decryptCBC
+           , aes128cryptECB
            ) where
 
 import Control.Monad.RWS hiding (state)
@@ -319,7 +320,15 @@ stateSplit b =
 
 aes128decryptECB :: B.ByteString -> B.ByteString -> B.ByteString
 aes128decryptECB key cipher =
-    B.concat $ map (aes128decryptBlock key) $ chunksOfSize 16 cipher
+    ecbHelper aes128decryptBlock key cipher
+
+ecbHelper :: (B.ByteString -> B.ByteString -> B.ByteString) -> B.ByteString -> B.ByteString -> B.ByteString
+ecbHelper fblock key input =
+    B.concat $ map (fblock key) $ chunksOfSize 16 input
+
+aes128cryptECB :: B.ByteString -> B.ByteString -> B.ByteString
+aes128cryptECB key plain =
+    ecbHelper aes128cryptBlock key plain
 
 aes128decryptCBC :: B.ByteString -> B.ByteString -> B.ByteString -> B.ByteString
 aes128decryptCBC key iv cipher =
@@ -335,31 +344,65 @@ aes128decryptCBCblock block = do
     tell $ xorBuffer out state
     put block
 
+(>>>) x f = f x
+
+fullSplit :: [a] -> (a, [a], a)
+fullSplit l = (head l, tail $ init l, last l)
+
+aes128cryptBlock :: B.ByteString -> B.ByteString -> B.ByteString
+aes128cryptBlock key plain =
+        plain
+    >>> addRoundKeyRev initialRoundKey
+    >>> rounds roundKeys
+    >>> subBytesRev
+    >>> shiftRowsRev
+    >>> addRoundKeyRev finalRoundKey
+        where
+            aesRound k s = s
+                       >>> subBytes
+                       >>> shiftRows
+                       >>> mixColumns
+                       >>> addRoundKey k
+            (initialRoundKey, roundKeys, finalRoundKey) = fullSplit $ keySchedule key
+            rounds [] s = s
+            rounds (k:ks) s = rounds ks $ aesRound k s
+
 aes128decryptBlock :: B.ByteString -> B.ByteString -> B.ByteString
 aes128decryptBlock key cipher =
         cipher
     >>> addRoundKeyRev finalRoundKey
     >>> shiftRowsRev
     >>> subBytesRev
-    >>> rounds roundKeys
+    >>> rounds (reverse roundKeys)
     >>> addRoundKeyRev initialRoundKey
         where
-            (>>>) x f = f x
-            aesRound k s = s
-                    >>> addRoundKeyRev k
-                    >>> mixColumnsRev
-                    >>> shiftRowsRev
-                    >>> subBytesRev
-            allRoundKeys = keySchedule key
-            initialRoundKey = head allRoundKeys
-            finalRoundKey = last allRoundKeys
-            roundKeys = reverse $ tail $ init $ allRoundKeys
+            aesRoundRev k s = s
+                          >>> addRoundKeyRev k
+                          >>> mixColumnsRev
+                          >>> shiftRowsRev
+                          >>> subBytesRev
+            (initialRoundKey, roundKeys, finalRoundKey) = fullSplit $ keySchedule key
             rounds [] s = s
-            rounds (k:ks) s = rounds ks $ aesRound k s
+            rounds (k:ks) s = rounds ks $ aesRoundRev k s
 
-addRoundKeyRev :: B.ByteString -> B.ByteString -> B.ByteString
-addRoundKeyRev state roundKey =
-    xorBuffer state roundKey
+addRoundKey, addRoundKeyRev :: B.ByteString -> B.ByteString -> B.ByteString
+addRoundKey = xorBuffer
+addRoundKeyRev = xorBuffer
+
+-- a0 a1 a2 a3       a0 a1 a2 a3
+-- b0 b1 b2 b3       b1 b2 b3 b0
+-- c0 c1 c2 c3  -->  c2 c3 c0 c1
+-- d0 d1 d2 d3       d3 d0 d1 d2
+--
+--  0  4  8 12        0  4  8 12
+--  1  5  9 13        5  9 13  1
+--  2  6 10 14  -->  10 14  2  6
+--  3  7 11 15       15  3  7 11
+shiftRows :: B.ByteString -> B.ByteString
+shiftRows b =
+    B.pack $ map (\ i -> B.index b i) idx
+        where
+            idx = [0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11]
 
 -- a0 a1 a2 a3       a0 a1 a2 a3
 -- b0 b1 b2 b3       b3 b0 b1 b2
@@ -376,18 +419,22 @@ shiftRowsRev b =
         where
             idx = [0, 13, 10, 7, 4, 1, 14, 11, 8, 5, 2, 15, 12, 9, 6, 3]
 
+subBytes :: B.ByteString -> B.ByteString
+subBytes s =
+    B.map (\ w -> sbox ! w) s
+
 subBytesRev :: B.ByteString -> B.ByteString
 subBytesRev s =
     B.map (\ w -> invSbox ! w) s
 
 mixColumnsRev :: B.ByteString -> B.ByteString
 mixColumnsRev s =
-    stateJoin a' b' c' d'
+    forColumn mixColumnRev s
+
+forColumn :: (B.ByteString -> B.ByteString) -> B.ByteString -> B.ByteString
+forColumn f s =
+    stateJoin (f a) (f b) (f c) (f d)
         where
-            a' = mixColumnRev a
-            b' = mixColumnRev b
-            c' = mixColumnRev c
-            d' = mixColumnRev d
             (a, b, c, d) = stateSplit s
 
 mixColumnRev :: B.ByteString -> B.ByteString
@@ -399,6 +446,10 @@ mixColumnRev bs =
             r2 = (gmul14 ! a2) `xor` (gmul9 ! a1) `xor` (gmul13 ! a0) `xor` (gmul11 ! a3)
             r3 = (gmul14 ! a3) `xor` (gmul9 ! a2) `xor` (gmul13 ! a1) `xor` (gmul11 ! a0)
             [a0, a1, a2, a3] = B.unpack bs
+
+mixColumns :: B.ByteString -> B.ByteString
+mixColumns s =
+    forColumn mixColumn s
 
 mixColumn :: B.ByteString -> B.ByteString
 mixColumn bs =
