@@ -174,15 +174,15 @@ index0 b i =
         then B.index b i
         else 0
 
-chall07ex :: IO ()
-chall07ex = do
+chall07 :: Test
+chall07 = "Challenge 07" ~: do
     cipher <- readFileBase64 "challenge-data/7.txt"
     let key = string2bs "YELLOW SUBMARINE"
         plain = aes128decryptECB key cipher
-    print plain
+    assert $ string2bs "Play that funky music" `B.isInfixOf` plain
 
 main :: IO ()
-main =
+main = do
     void $ runTestTT $ TestList
         [ chall01
         , chall02
@@ -190,4 +190,5 @@ main =
         , chall05
         , chall06
         , aesTests
+        , chall07
         ]

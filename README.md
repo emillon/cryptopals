@@ -10,7 +10,7 @@ http://cryptopals.com/
   - [X] Detect single-character XOR
   - [X] Implement repeating-key XOR
   - [X] Break repeating-key XOR
-  - [ ] AES in ECB mode
+  - [X] AES in ECB mode
   - [ ] Detect AES in ECB mode
 
 ## Set 2
