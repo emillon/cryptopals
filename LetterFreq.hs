@@ -10,53 +10,115 @@ englishness :: B.ByteString -> Float
 englishness s =
     similarity (freq s) englishFreq
 
-toCommonLetter :: Word8 -> Word8
-toCommonLetter = fromIntegral . ord . toLower . chr . fromIntegral
+type Freq = Letter -> Float
 
-type Freq = M.Map Word8 Float
+data Letter = LetterA
+            | LetterB
+            | LetterC
+            | LetterD
+            | LetterE
+            | LetterF
+            | LetterG
+            | LetterH
+            | LetterI
+            | LetterJ
+            | LetterK
+            | LetterL
+            | LetterM
+            | LetterN
+            | LetterO
+            | LetterP
+            | LetterQ
+            | LetterR
+            | LetterS
+            | LetterT
+            | LetterU
+            | LetterV
+            | LetterW
+            | LetterX
+            | LetterY
+            | LetterZ
+            | LetterSpace
+    deriving (Eq, Enum, Ord)
+
+letters :: [Letter]
+letters = [toEnum 0..]
+
+toLetter :: Word8 -> Maybe Letter
+toLetter w =
+    let c = toLower (chr (fromIntegral w)) in
+    case c of
+        'a' -> Just LetterA
+        'b' -> Just LetterB
+        'c' -> Just LetterC
+        'd' -> Just LetterD
+        'e' -> Just LetterE
+        'f' -> Just LetterF
+        'g' -> Just LetterG
+        'h' -> Just LetterH
+        'i' -> Just LetterI
+        'j' -> Just LetterJ
+        'k' -> Just LetterK
+        'l' -> Just LetterL
+        'm' -> Just LetterM
+        'n' -> Just LetterN
+        'o' -> Just LetterO
+        'p' -> Just LetterP
+        'q' -> Just LetterQ
+        'r' -> Just LetterR
+        's' -> Just LetterS
+        't' -> Just LetterT
+        'u' -> Just LetterU
+        'v' -> Just LetterV
+        'w' -> Just LetterW
+        'x' -> Just LetterX
+        'y' -> Just LetterY
+        'z' -> Just LetterZ
+        ' ' -> Just LetterSpace
+        _ -> Nothing
 
 englishFreq :: Freq
-englishFreq = M.fromList $ map (\ (c, f) -> (fromIntegral (ord c), f))
-    [ (' ', 0.19182)
-    , ('e', 0.13000)
-    , ('t', 0.09056)
-    , ('a', 0.08167)
-    , ('o', 0.07507)
-    , ('i', 0.06966)
-    , ('n', 0.06749)
-    , ('s', 0.06327)
-    , ('h', 0.06094)
-    , ('r', 0.05987)
-    , ('d', 0.04253)
-    , ('l', 0.04025)
-    , ('c', 0.02782)
-    , ('u', 0.02758)
-    , ('m', 0.02406)
-    , ('w', 0.02360)
-    , ('f', 0.02228)
-    , ('g', 0.02015)
-    , ('y', 0.01974)
-    , ('p', 0.01929)
-    , ('b', 0.01492)
-    , ('v', 0.00978)
-    , ('k', 0.00772)
-    , ('j', 0.00153)
-    , ('x', 0.00150)
-    , ('q', 0.00095)
-    , ('z', 0.00074)
-    ]
-    ++ map (\ w -> (w, -0.2)) ([0..31] ++ [127..255])
+englishFreq LetterSpace = 0.19182
+englishFreq LetterE = 0.13000
+englishFreq LetterT = 0.09056
+englishFreq LetterA = 0.08167
+englishFreq LetterO = 0.07507
+englishFreq LetterI = 0.06966
+englishFreq LetterN = 0.06749
+englishFreq LetterS = 0.06327
+englishFreq LetterH = 0.06094
+englishFreq LetterR = 0.05987
+englishFreq LetterD = 0.04253
+englishFreq LetterL = 0.04025
+englishFreq LetterC = 0.02782
+englishFreq LetterU = 0.02758
+englishFreq LetterM = 0.02406
+englishFreq LetterW = 0.02360
+englishFreq LetterF = 0.02228
+englishFreq LetterG = 0.02015
+englishFreq LetterY = 0.01974
+englishFreq LetterP = 0.01929
+englishFreq LetterB = 0.01492
+englishFreq LetterV = 0.00978
+englishFreq LetterK = 0.00772
+englishFreq LetterJ = 0.00153
+englishFreq LetterX = 0.00150
+englishFreq LetterQ = 0.00095
+englishFreq LetterZ = 0.00074
 
 freq :: B.ByteString -> Freq
-freq b =
-    M.map (\ c -> c / n) letterCount
+freq b l =
+    M.findWithDefault 0.0 l letterCount / n
         where
             letterCount = B.foldr go M.empty b
-            go w m = M.insertWith (+) (toCommonLetter w) 1.0 m
+            go w m =
+                case toLetter w of
+                    Nothing -> m
+                    Just le -> M.insertWith (+) le 1.0 m
             n = fromIntegral $ B.length b
 
 norm :: Freq -> Float
-norm f = sqrt $ sum $ map (\ l -> (M.findWithDefault 0.0 (fromIntegral (ord l)) f)^(2::Int)) ['a'..'z']
+norm f = sqrt $ sum $ map (\ l -> (f l)^(2::Int)) letters
 
 similarity  :: Freq -> Freq -> Float
 similarity a b =
@@ -68,6 +130,4 @@ similarity a b =
 
 dot :: Freq -> Freq -> Float
 dot a b =
-    sum $ map (\ l -> find0 a l * find0 b l) [toEnum 0..toEnum 255]
-        where
-            find0 m k = M.findWithDefault 0.0 k m
+    sum $ map (\ l -> a l * b l) letters
