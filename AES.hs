@@ -1,7 +1,9 @@
 module AES ( aesTests
            , aes128decryptECB
+           , aes128decryptCBC
            ) where
 
+import Control.Monad.RWS hiding (state)
 import Data.Array
 import Data.Bits
 import Data.Word
@@ -318,6 +320,20 @@ stateSplit b =
 aes128decryptECB :: B.ByteString -> B.ByteString -> B.ByteString
 aes128decryptECB key cipher =
     B.concat $ map (aes128decryptBlock key) $ chunksOfSize 16 cipher
+
+aes128decryptCBC :: B.ByteString -> B.ByteString -> B.ByteString -> B.ByteString
+aes128decryptCBC key iv cipher =
+    thr3 $ runRWS m key iv
+        where
+            m = mapM_ aes128decryptCBCblock $ chunksOfSize 16 cipher
+
+aes128decryptCBCblock :: B.ByteString -> RWS B.ByteString B.ByteString B.ByteString ()
+aes128decryptCBCblock block = do
+    key <- ask
+    let out = aes128decryptBlock key block
+    state <- get
+    tell $ xorBuffer out state
+    put block
 
 aes128decryptBlock :: B.ByteString -> B.ByteString -> B.ByteString
 aes128decryptBlock key cipher =

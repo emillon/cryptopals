@@ -227,6 +227,14 @@ padPkcs7 b =
                 0 -> 0
                 l -> 16 - l
 
+chall10 :: Test
+chall10 = "Challenge 10" ~: do
+    cipher <- readFileBase64 "challenge-data/10.txt"
+    let key = string2bs "YELLOW SUBMARINE"
+        iv = B.replicate 16 0
+        plain = aes128decryptCBC key iv cipher
+    assert $ string2bs "Let the witch doctor" `B.isInfixOf` plain
+
 main :: IO ()
 main = do
     void $ runTestTT $ TestList
@@ -239,4 +247,5 @@ main = do
         , chall07
         , chall08
         , chall09
+        , chall10
         ]
