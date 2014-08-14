@@ -10,13 +10,13 @@ englishness :: B.ByteString -> Float
 englishness s =
     similarity (freq s) englishFreq
 
-toCommonLetter :: Word8 -> Char
-toCommonLetter = toLower . chr . fromIntegral
+toCommonLetter :: Word8 -> Word8
+toCommonLetter = fromIntegral . ord . toLower . chr . fromIntegral
 
-type Freq = M.Map Char Float
+type Freq = M.Map Word8 Float
 
 englishFreq :: Freq
-englishFreq = M.fromList $
+englishFreq = M.fromList $ map (\ (c, f) -> (fromIntegral (ord c), f))
     [ (' ', 0.19182)
     , ('e', 0.13000)
     , ('t', 0.09056)
@@ -45,7 +45,7 @@ englishFreq = M.fromList $
     , ('q', 0.00095)
     , ('z', 0.00074)
     ]
-    ++ map (\ w -> (w, -0.1)) (['\000'..'\031'] ++ ['\127'..'\255'])
+    ++ map (\ w -> (w, -0.2)) ([0..31] ++ [127..255])
 
 freq :: B.ByteString -> Freq
 freq b =
@@ -56,7 +56,7 @@ freq b =
             n = fromIntegral $ B.length b
 
 norm :: Freq -> Float
-norm f = sqrt $ sum $ map (\ l -> (M.findWithDefault 0.0 l f)^(2::Int)) ['a'..'z']
+norm f = sqrt $ sum $ map (\ l -> (M.findWithDefault 0.0 (fromIntegral (ord l)) f)^(2::Int)) ['a'..'z']
 
 similarity  :: Freq -> Freq -> Float
 similarity a b =
