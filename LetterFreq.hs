@@ -122,11 +122,10 @@ norm f = sqrt $ sum $ map (\ l -> (f l)^(2::Int)) letters
 
 similarity  :: Freq -> Freq -> Float
 similarity a b =
-    let na = norm a in
-    let nb = norm b in
-    if na == 0.0 || nb == 0.0
+    let d = dot a b in
+    if d == 0.0
         then -1.0
-        else dot a b / (na * nb)
+        else d / (norm a * norm b)
 
 dot :: Freq -> Freq -> Float
 dot a b =
