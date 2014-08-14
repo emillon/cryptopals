@@ -8,6 +8,7 @@ import Test.HUnit
 
 import qualified Data.ByteString as B
 
+import AES
 import Base64
 import LetterFreq
 
@@ -200,4 +201,5 @@ main =
         , chall03
         , chall05
         , chall06
+        , aesTests
         ]
