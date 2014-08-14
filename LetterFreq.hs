@@ -1,4 +1,6 @@
-module LetterFreq (englishness) where
+module LetterFreq ( englishness
+                  , printability
+                  ) where
 
 import Data.Char
 import Data.Word
@@ -39,72 +41,77 @@ data Letter = LetterA
             | LetterY
             | LetterZ
             | LetterSpace
+            | LetterOther
     deriving (Eq, Enum, Ord)
 
 letters :: [Letter]
 letters = [toEnum 0..]
 
-toLetter :: Word8 -> Maybe Letter
+toLetter :: Word8 -> Letter
 toLetter w =
     let c = toLower (chr (fromIntegral w)) in
     case c of
-        'a' -> Just LetterA
-        'b' -> Just LetterB
-        'c' -> Just LetterC
-        'd' -> Just LetterD
-        'e' -> Just LetterE
-        'f' -> Just LetterF
-        'g' -> Just LetterG
-        'h' -> Just LetterH
-        'i' -> Just LetterI
-        'j' -> Just LetterJ
-        'k' -> Just LetterK
-        'l' -> Just LetterL
-        'm' -> Just LetterM
-        'n' -> Just LetterN
-        'o' -> Just LetterO
-        'p' -> Just LetterP
-        'q' -> Just LetterQ
-        'r' -> Just LetterR
-        's' -> Just LetterS
-        't' -> Just LetterT
-        'u' -> Just LetterU
-        'v' -> Just LetterV
-        'w' -> Just LetterW
-        'x' -> Just LetterX
-        'y' -> Just LetterY
-        'z' -> Just LetterZ
-        ' ' -> Just LetterSpace
-        _ -> Nothing
+        'a' -> LetterA
+        'b' -> LetterB
+        'c' -> LetterC
+        'd' -> LetterD
+        'e' -> LetterE
+        'f' -> LetterF
+        'g' -> LetterG
+        'h' -> LetterH
+        'i' -> LetterI
+        'j' -> LetterJ
+        'k' -> LetterK
+        'l' -> LetterL
+        'm' -> LetterM
+        'n' -> LetterN
+        'o' -> LetterO
+        'p' -> LetterP
+        'q' -> LetterQ
+        'r' -> LetterR
+        's' -> LetterS
+        't' -> LetterT
+        'u' -> LetterU
+        'v' -> LetterV
+        'w' -> LetterW
+        'x' -> LetterX
+        'y' -> LetterY
+        'z' -> LetterZ
+        ' ' -> LetterSpace
+        _ -> LetterOther
+
+letterFreq :: Float
+letterFreq = 0.95
 
 englishFreq :: Freq
-englishFreq LetterSpace = 0.19182
-englishFreq LetterE = 0.13000
-englishFreq LetterT = 0.09056
-englishFreq LetterA = 0.08167
-englishFreq LetterO = 0.07507
-englishFreq LetterI = 0.06966
-englishFreq LetterN = 0.06749
-englishFreq LetterS = 0.06327
-englishFreq LetterH = 0.06094
-englishFreq LetterR = 0.05987
-englishFreq LetterD = 0.04253
-englishFreq LetterL = 0.04025
-englishFreq LetterC = 0.02782
-englishFreq LetterU = 0.02758
-englishFreq LetterM = 0.02406
-englishFreq LetterW = 0.02360
-englishFreq LetterF = 0.02228
-englishFreq LetterG = 0.02015
-englishFreq LetterY = 0.01974
-englishFreq LetterP = 0.01929
-englishFreq LetterB = 0.01492
-englishFreq LetterV = 0.00978
-englishFreq LetterK = 0.00772
-englishFreq LetterJ = 0.00153
-englishFreq LetterX = 0.00150
-englishFreq LetterQ = 0.00095
-englishFreq LetterZ = 0.00074
+englishFreq LetterA = letterFreq * 0.0651738
+englishFreq LetterB = letterFreq * 0.0124248
+englishFreq LetterC = letterFreq * 0.0217339
+englishFreq LetterD = letterFreq * 0.0349835
+englishFreq LetterE = letterFreq * 0.1041442
+englishFreq LetterF = letterFreq * 0.0197881
+englishFreq LetterG = letterFreq * 0.0158610
+englishFreq LetterH = letterFreq * 0.0492888
+englishFreq LetterI = letterFreq * 0.0558094
+englishFreq LetterJ = letterFreq * 0.0009033
+englishFreq LetterK = letterFreq * 0.0050529
+englishFreq LetterL = letterFreq * 0.0331490
+englishFreq LetterM = letterFreq * 0.0202124
+englishFreq LetterN = letterFreq * 0.0564513
+englishFreq LetterO = letterFreq * 0.0596302
+englishFreq LetterP = letterFreq * 0.0137645
+englishFreq LetterQ = letterFreq * 0.0008606
+englishFreq LetterR = letterFreq * 0.0497563
+englishFreq LetterS = letterFreq * 0.0515760
+englishFreq LetterT = letterFreq * 0.0729357
+englishFreq LetterU = letterFreq * 0.0225134
+englishFreq LetterV = letterFreq * 0.0082903
+englishFreq LetterW = letterFreq * 0.0171272
+englishFreq LetterX = letterFreq * 0.0013692
+englishFreq LetterY = letterFreq * 0.0145984
+englishFreq LetterZ = letterFreq * 0.0007836
+englishFreq LetterSpace = letterFreq * 0.1918182
+englishFreq LetterOther = 1 - letterFreq
 
 freq :: B.ByteString -> Freq
 freq b l =
@@ -112,9 +119,7 @@ freq b l =
         where
             letterCount = B.foldr go M.empty b
             go w m =
-                case toLetter w of
-                    Nothing -> m
-                    Just le -> M.insertWith (+) le 1.0 m
+                M.insertWith (+) (toLetter w) 1.0 m
             n = fromIntegral $ B.length b
 
 norm :: Freq -> Float
@@ -130,3 +135,10 @@ similarity a b =
 dot :: Freq -> Freq -> Float
 dot a b =
     sum $ map (\ l -> a l * b l) letters
+
+printability :: B.ByteString -> Float
+printability b =
+    fromIntegral printable / fromIntegral total
+        where
+            printable = B.foldr (\ w n -> if isPrint (chr (fromIntegral w)) then n + 1 else n) (0::Int) b
+            total = B.length b

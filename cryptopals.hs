@@ -116,11 +116,16 @@ chall06 =
         , ("bGVhc3VyZS4=", "leasure.")
         , ("ZWFzdXJlLg==", "easure.")
         ]
+    ++ [acceptance]
     where
         hammingTc a b spec =
             spec ~=? hammingDistance a b
         decode64tc input spec =
             spec ~=? bs2string (decodeBase64 input)
+        acceptance = TestCase $ do
+            c <- concat <$> lines <$> readFile "challenge-data/6.txt"
+            let (key, _, _) = breakRepeatXorAuto $ decodeBase64 c
+            assertEqual "Vigenere" (string2bs "Terminator X: Bring the noise") key
 
 hammingDistance :: B.ByteString -> B.ByteString -> Int
 hammingDistance a b = sum $ B.zipWith hammingDistanceWord8 a b
@@ -131,10 +136,15 @@ hammingDistanceWord8 a b =
 
 tryKeySize :: Int -> B.ByteString -> Int
 tryKeySize n bs =
-    hammingDistance a b
+    sum $ map (\ (x, y) -> hammingDistance x y) chunkPairs
         where
-            a = B.take n bs
-            b = B.take n $ B.drop n bs
+            a = chunk 0
+            b = chunk 1
+            c = chunk 2
+            d = chunk 3
+            chunk i = B.take n $ B.drop (i * n) bs
+            chunkPairs = [ (a, b), (a, c), (a, d) , (b, c), (c, d) , (c, d) ]
+
 
 scoreKeySize :: Int -> B.ByteString -> Float
 scoreKeySize ks b =
@@ -144,25 +154,24 @@ scoreKeySize ks b =
 
 keysizeCandidates :: B.ByteString -> [Int]
 keysizeCandidates b =
-    take 4 $ map fst $ reverse $ sortBy (comparing snd) $ map (\ ks -> (ks, scoreKeySize ks b)) [2..40]
+    take 4 $ map fst $ sortBy (comparing snd) $ map (\ ks -> (ks, scoreKeySize ks b)) [2..40]
 
-chall06ex :: IO ()
-chall06ex = do
-    c <- concat <$> lines <$> readFile "challenge-data/6.txt"
-    let d = decodeBase64 c
-    forM_ (keysizeCandidates d) $ \ks -> do
-        let key = B.pack $ breakRepeatXor ks d
-        putStrLn $ "ks = " ++ show ks
-        print key
-        let plain = xorBufferRepeat d key
-        print plain
+breakRepeatXorAuto :: B.ByteString -> (B.ByteString, Float, B.ByteString)
+breakRepeatXorAuto b =
+    maximumBy (comparing snd3) $ map f $ map (breakRepeatXor b) $ keysizeCandidates b
+        where
+            f k =
+                let plain = xorBufferRepeat b k in
+                (k, englishness plain, plain)
 
-breakRepeatXor :: Int -> B.ByteString -> [Word8]
-breakRepeatXor ks b =
-    map (\ tc -> fst3 (findXorKey tc)) tcs
+breakRepeatXor :: B.ByteString -> Int -> B.ByteString
+breakRepeatXor b ks =
+    key
         where
             cs = chunksOfSize ks b
             tcs = transposeChunks cs
+            keyWords = map (\ tc -> fst3 (findXorKey tc)) tcs
+            key = B.pack keyWords
 
 chunksOfSize :: Int -> B.ByteString -> [B.ByteString]
 chunksOfSize n b | B.length b <= n = [b]
