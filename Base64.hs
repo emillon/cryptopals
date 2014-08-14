@@ -5,8 +5,10 @@ module Base64 ( decodeHex
               , string2bs
               , decodeBase64
               , hexToB64
+              , readFileBase64
               ) where
 
+import Control.Applicative
 import Data.Array
 import Data.Char
 import Data.Word
@@ -141,3 +143,8 @@ fourByFour :: [a] -> [(a, a, a, a)]
 fourByFour [] = []
 fourByFour (a:b:c:d:r) = (a, b, c, d):fourByFour r
 fourByFour _ = error "fourByFour"
+
+readFileBase64 :: FilePath -> IO B.ByteString
+readFileBase64 path = do
+    c <- concat <$> lines <$> readFile path
+    return $ decodeBase64 c

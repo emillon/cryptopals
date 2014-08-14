@@ -121,8 +121,8 @@ chall06 =
         decode64tc input spec =
             spec ~=? bs2string (decodeBase64 input)
         acceptance = TestCase $ do
-            c <- concat <$> lines <$> readFile "challenge-data/6.txt"
-            let (key, _, _) = breakRepeatXorAuto $ decodeBase64 c
+            d <- readFileBase64 "challenge-data/6.txt"
+            let (key, _, _) = breakRepeatXorAuto $ d
             assertEqual "Vigenere" (string2bs "Terminator X: Bring the noise") key
 
 hammingDistance :: B.ByteString -> B.ByteString -> Int
@@ -189,6 +189,11 @@ index0 b i =
     if i < B.length b
         then B.index b i
         else 0
+
+chall07ex :: IO ()
+chall07ex = do
+    d <- readFileBase64 "challenge-data/7.txt"
+    print d
 
 main :: IO ()
 main =
