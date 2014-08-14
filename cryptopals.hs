@@ -14,6 +14,8 @@ import Test.HUnit
 import qualified Data.ByteString as B
 import qualified Data.Map as M
 
+import Base64
+
 bs2string :: B.ByteString -> String
 bs2string = map (toEnum . fromEnum) . B.unpack
 
@@ -63,39 +65,12 @@ getAsB64 = do
         getAsB64Chunk
         getAsB64
 
-decodeHex :: String -> B.ByteString
-decodeHex = B.pack . map (uncurry decodeHexPair) . twoByTwo
-
-encodeHex :: B.ByteString -> String
-encodeHex b = B.foldr go "" b
-    where
-        go w s =
-            encodeHexPair w ++ s
-
-twoByTwo :: [a] -> [(a, a)]
-twoByTwo [] = []
-twoByTwo (a:b:l) = (a, b):twoByTwo l
-twoByTwo [_] = error "twoByTwo"
-
-decodeHexPair :: Char -> Char -> Word8
-decodeHexPair h l =
-    0x10 * decodeHexChar h + decodeHexChar l
-
-decodeHexChar :: Char -> Word8
-decodeHexChar = fromIntegral . digitToInt
-
 toHex :: String -> String
 toHex =
     concatMap encodeHexPairChar
 
 encodeHexPairChar :: Char -> String
 encodeHexPairChar = encodeHexPair . fromIntegral . ord
-
-encodeHexPair :: Word8 -> String
-encodeHexPair w = [h, l] where
-    h = intToDigit $ fromIntegral q
-    l = intToDigit $ fromIntegral r
-    (q, r) = w `quotRem` 0x10
 
 xorBuffer :: B.ByteString -> B.ByteString -> B.ByteString
 xorBuffer a b =
