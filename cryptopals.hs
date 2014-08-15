@@ -241,21 +241,36 @@ randomBytes n = do
     bytes <- forM [1..n] $ \ _ -> randomIO
     return $ B.pack bytes
 
-aesRandomMode :: B.ByteString -> IO B.ByteString
+data AESMode = ECB | CBC deriving (Eq, Show)
+
+aesRandomMode :: B.ByteString -> IO (B.ByteString, AESMode)
 aesRandomMode input = do
-    modeIsAES <- randomIO
+    modeIsECB <- randomIO
     key <- randomBytes 16
     nbefore <- randomRIO (5, 10)
     nafter <- randomRIO (5, 10)
     before <- randomBytes nbefore
     after <- randomBytes nafter
-    let plain = B.concat [before, input, after]
-    if modeIsAES
+    let plain = padPkcs7 $ B.concat [before, input, after]
+    if modeIsECB
         then
-            return $ aes128cryptECB key plain
+            return (aes128cryptECB key plain, ECB)
         else do
             iv <- randomBytes 16
-            return $ aes128cryptCBC key iv plain
+            return (aes128cryptCBC key iv plain, CBC)
+
+aesECBoracle :: IO Bool
+aesECBoracle = do
+    let nplain = 3 * 16 -- so that we fully control blocks 2 & 3
+        plain = B.replicate nplain 0
+    (cipher, actualMode) <- aesRandomMode plain
+    let detectedMode = if isECB cipher then ECB else CBC
+    return $ actualMode == detectedMode
+
+chall11 :: Test
+chall11 = "Challenge 11" ~: do
+    results <- mapM (\ _ -> aesECBoracle) [1::Int ..100]
+    assert $ and results
 
 main :: IO ()
 main = do
@@ -270,4 +285,5 @@ main = do
         , chall08
         , chall09
         , chall10
+        , chall11
         ]
