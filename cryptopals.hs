@@ -87,8 +87,10 @@ chall05 =
 
 xorBufferRepeat :: B.ByteString -> B.ByteString -> B.ByteString
 xorBufferRepeat input key =
-    B.pack $ map (\ (i, w) -> xor w (B.index key (i `mod` n))) $ zip [0..] $ B.unpack input
+    snd $ B.mapAccumL go 0 input
         where
+            go i w =
+                (i + 1, xor w (B.index key (i `mod` n)))
             n = B.length key
 
 chall06 :: Test
