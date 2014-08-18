@@ -1,7 +1,9 @@
 import Control.Applicative
 import Control.Monad
 import Data.Bits
+import Data.Char
 import Data.List
+import Data.Maybe
 import Data.Ord
 import Data.Word
 import System.Random
@@ -273,6 +275,31 @@ chall11 :: Test
 chall11 = "Challenge 11" ~: do
     results <- mapM (\ _ -> aesECBoracle) [1::Int ..100]
     assert $ and results
+
+aesUnknown :: B.ByteString -> B.ByteString
+aesUnknown input =
+    aes128cryptECB key $ padPkcs7 $ B.append input after
+        where
+            after = decodeBase64 $ concat
+                [ "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg"
+                , "aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq"
+                , "dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"
+                , "YnkK"
+                ]
+            key = unHex "be0c fb9c 2c27 b79b e358 a079 4271 3776"
+
+detectBlockSize :: Int
+detectBlockSize =
+    (1+) $ findIndex2 same $ map f [1..30]
+        where
+            f n =
+                B.take n $ aesUnknown $ B.replicate n $ fromIntegral $ ord 'A'
+            same x y =
+                x == B.init y
+
+findIndex2 :: (a -> a -> Bool) -> [a] -> Int
+findIndex2 f l =
+    fromJust $ findIndex (\ (x, y) -> f x y) $ zip l (tail l)
 
 main :: IO ()
 main = do
