@@ -18,7 +18,7 @@ http://cryptopals.com/
   - [X] Implement PKCS#7 padding
   - [X] Implement CBC mode
   - [X] An ECB/CBC detection oracle
-  - [ ] Byte-at-a-time ECB decryption (Simple)
+  - [X] Byte-at-a-time ECB decryption (Simple)
   - [ ] ECB cut-and-paste
   - [ ] Byte-at-a-time ECB decryption (Harder)
   - [ ] PKCS#7 padding validation

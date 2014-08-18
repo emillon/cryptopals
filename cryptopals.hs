@@ -133,13 +133,15 @@ tryKeySize :: Int -> B.ByteString -> Int
 tryKeySize n bs =
     sum $ map (\ (x, y) -> hammingDistance x y) chunkPairs
         where
-            a = chunk 0
-            b = chunk 1
-            c = chunk 2
-            d = chunk 3
-            chunk i = B.take n $ B.drop (i * n) bs
+            a = nthChunk n 0 bs
+            b = nthChunk n 1 bs
+            c = nthChunk n 2 bs
+            d = nthChunk n 3 bs
             chunkPairs = [ (a, b), (a, c), (a, d) , (b, c), (c, d) , (c, d) ]
 
+nthChunk :: Int -> Int -> B.ByteString -> B.ByteString
+nthChunk sz i b =
+    B.take sz $ B.drop (i * sz) b
 
 scoreKeySize :: Int -> B.ByteString -> Float
 scoreKeySize ks b =
@@ -276,16 +278,18 @@ chall11 = "Challenge 11" ~: do
     results <- mapM (\ _ -> aesECBoracle) [1::Int ..100]
     assert $ and results
 
+afterAesUnknown :: B.ByteString
+afterAesUnknown = decodeBase64 $ concat
+    [ "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg"
+    , "aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq"
+    , "dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"
+    , "YnkK"
+    ]
+
 aesUnknown :: B.ByteString -> B.ByteString
 aesUnknown input =
-    aes128cryptECB key $ padPkcs7 $ B.append input after
+    aes128cryptECB key $ padPkcs7 $ B.append input afterAesUnknown
         where
-            after = decodeBase64 $ concat
-                [ "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg"
-                , "aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq"
-                , "dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"
-                , "YnkK"
-                ]
             key = unHex "be0c fb9c 2c27 b79b e358 a079 4271 3776"
 
 nTimesA :: Int -> B.ByteString
@@ -305,24 +309,30 @@ findIndex2 :: (a -> a -> Bool) -> [a] -> Int
 findIndex2 f l =
     fromJust $ findIndex (uncurry f) $ zip l (tail l)
 
-nextByte :: B.ByteString -> Word8
+nextByte :: B.ByteString -> Maybe Word8
 nextByte start =
-    m M.! goal
+    M.lookup goal m
         where
             m = M.fromList $ map (\ w -> (block w, w)) [0..]
             bs = detectBlockSize
-            shortBlock = nTimesA (bs - 1 - B.length start)
-            goal = B.take bs $ aesUnknown shortBlock
+            n = B.length start
+            shortBlock = nTimesA ((blockNum + 1) * bs - 1 - n)
+            goal = nthChunk bs blockNum $ aesUnknown shortBlock
+            blockNum = n `div` bs
             block w =
-                B.take bs $ aesUnknown $ B.concat [shortBlock, start, B.singleton w]
+                nthChunk bs blockNum $ aesUnknown $ B.concat [shortBlock, start, B.singleton w]
 
-unknownBytes :: [Word8]
+unknownBytes :: B.ByteString
 unknownBytes =
-    unfoldr go []
+    B.init $ B.unfoldr go []
         where
-            go l =
-                let r = nextByte $ B.pack l in
-                Just (r, l++[r])
+            go l = do
+                r <- nextByte $ B.pack l
+                return (r, l++[r])
+
+chall12 :: Test
+chall12 = "Challenge 12" ~:
+    unknownBytes ~=? afterAesUnknown
 
 main :: IO ()
 main = do
@@ -338,4 +348,5 @@ main = do
         , chall09
         , chall10
         , chall11
+        , chall12
         ]
