@@ -359,46 +359,37 @@ aes128decryptCBCblock block = do
     tell $ xorBuffer out state
     put block
 
-(>>>) x f = f x
-
 fullSplit :: [a] -> (a, [a], a)
 fullSplit l = (head l, tail $ init l, last l)
 
 aes128cryptBlock :: B.ByteString -> B.ByteString -> B.ByteString
-aes128cryptBlock key plain =
-        plain
-    >>> addRoundKeyRev initialRoundKey
-    >>> rounds roundKeys
-    >>> subBytesRev
-    >>> shiftRowsRev
-    >>> addRoundKeyRev finalRoundKey
+aes128cryptBlock key =
+      addRoundKeyRev finalRoundKey
+    . shiftRowsRev
+    . subBytesRev
+    . rounds (reverse roundKeys)
+    . addRoundKeyRev initialRoundKey
         where
-            aesRound k s = s
-                       >>> subBytes
-                       >>> shiftRows
-                       >>> mixColumns
-                       >>> addRoundKey k
             (initialRoundKey, roundKeys, finalRoundKey) = fullSplit $ keySchedule key
             rounds [] s = s
-            rounds (k:ks) s = rounds ks $ aesRound k s
+            rounds (k:ks) s = aesRound k $ rounds ks s
+
+aesRound :: B.ByteString -> B.ByteString -> B.ByteString
+aesRound k = addRoundKey k . mixColumns . shiftRows . subBytes
 
 aes128decryptBlock :: B.ByteString -> B.ByteString -> B.ByteString
-aes128decryptBlock key cipher =
-        cipher
-    >>> addRoundKeyRev finalRoundKey
-    >>> shiftRowsRev
-    >>> subBytesRev
-    >>> rounds (reverse roundKeys)
-    >>> addRoundKeyRev initialRoundKey
+aes128decryptBlock key =
+      addRoundKeyRev initialRoundKey
+    . rounds roundKeys
+    . subBytesRev
+    . shiftRowsRev
+    . addRoundKeyRev finalRoundKey
         where
-            aesRoundRev k s = s
-                          >>> addRoundKeyRev k
-                          >>> mixColumnsRev
-                          >>> shiftRowsRev
-                          >>> subBytesRev
             (initialRoundKey, roundKeys, finalRoundKey) = fullSplit $ keySchedule key
-            rounds [] s = s
-            rounds (k:ks) s = rounds ks $ aesRoundRev k s
+            rounds ks s = foldr aesRoundRev s ks
+
+aesRoundRev :: B.ByteString -> B.ByteString -> B.ByteString
+aesRoundRev k = subBytesRev . shiftRowsRev . mixColumnsRev . addRoundKeyRev k
 
 addRoundKey, addRoundKeyRev :: B.ByteString -> B.ByteString -> B.ByteString
 addRoundKey = xorBuffer
