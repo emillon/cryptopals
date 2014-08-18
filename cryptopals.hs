@@ -288,18 +288,41 @@ aesUnknown input =
                 ]
             key = unHex "be0c fb9c 2c27 b79b e358 a079 4271 3776"
 
+nTimesA :: Int -> B.ByteString
+nTimesA n =
+    B.replicate n $ fromIntegral $ ord 'A'
+
 detectBlockSize :: Int
 detectBlockSize =
     (1+) $ findIndex2 same $ map f [1..30]
         where
             f n =
-                B.take n $ aesUnknown $ B.replicate n $ fromIntegral $ ord 'A'
+                B.take n $ aesUnknown $ nTimesA n
             same x y =
                 x == B.init y
 
 findIndex2 :: (a -> a -> Bool) -> [a] -> Int
 findIndex2 f l =
-    fromJust $ findIndex (\ (x, y) -> f x y) $ zip l (tail l)
+    fromJust $ findIndex (uncurry f) $ zip l (tail l)
+
+nextByte :: B.ByteString -> Word8
+nextByte start =
+    m M.! goal
+        where
+            m = M.fromList $ map (\ w -> (block w, w)) [0..]
+            bs = detectBlockSize
+            shortBlock = nTimesA (bs - 1 - B.length start)
+            goal = B.take bs $ aesUnknown shortBlock
+            block w =
+                B.take bs $ aesUnknown $ B.concat [shortBlock, start, B.singleton w]
+
+unknownBytes :: [Word8]
+unknownBytes =
+    unfoldr go []
+        where
+            go l =
+                let r = nextByte $ B.pack l in
+                Just (r, l++[r])
 
 main :: IO ()
 main = do
