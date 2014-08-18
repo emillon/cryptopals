@@ -1,4 +1,5 @@
 module Misc ( chunksOfSize
+            , nthChunk
             , fst3
             , snd3
             , thr3
@@ -13,6 +14,10 @@ chunksOfSize n b =
     h:chunksOfSize n t
         where
             (h, t) = B.splitAt n b
+
+nthChunk :: Int -> Int -> B.ByteString -> B.ByteString
+nthChunk sz i b =
+    B.take sz $ B.drop (i * sz) b
 
 fst3 :: (a, b, c) -> a
 fst3 (x, _, _) = x

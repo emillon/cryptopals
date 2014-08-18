@@ -81,7 +81,7 @@ scheduleTests = "AES Key Schedule" ~: map (uncurry tc)
     ]
     where
         tc input spec =
-            map unHex spec ~=? keySchedule (unHex input)
+            map unHex spec ~=? map aesStateJoin (keySchedule (unHex input))
 
 mixTests :: Test
 mixTests = TestList
@@ -89,8 +89,8 @@ mixTests = TestList
     , "AES MixColumns Rev" ~: map (uncurry tcRev) tcs
     ]
         where
-            tcFwd input spec = unHex spec ~=? mixColumn (unHex input)
-            tcRev spec input = unHex spec ~=? mixColumnRev (unHex input)
+            tcFwd input spec = unHex spec ~=? w32ToBs (mixColumn (bsToW32 (unHex input)))
+            tcRev spec input = unHex spec ~=? w32ToBs (mixColumnRev (bsToW32 (unHex input)))
 
             --           <-- mix rev ---
             --           ----- mix ---->
@@ -103,21 +103,63 @@ mixTests = TestList
                 , ("2d 26 31 4c", "4d 7e bd f8")
                 ]
 
-keySchedule :: B.ByteString -> [B.ByteString]
+-- Word32s are little endian
+type AESState = (Word32, Word32, Word32, Word32)
+
+aesStateJoin :: AESState -> B.ByteString
+aesStateJoin (a, b, c, d) =
+    B.concat $ map w32ToBs [a, b, c, d]
+
+w32toBytes :: Word32 -> (Word8, Word8, Word8, Word8)
+w32toBytes n =
+    ( fromIntegral (n .&. 0x000000ff)
+    , fromIntegral $ (n .&. 0x0000ff00) `shiftR` 8
+    , fromIntegral $ (n .&. 0x00ff0000) `shiftR` 16
+    , fromIntegral $ (n .&. 0xff000000) `shiftR` 24
+    )
+
+aesStateSplit :: B.ByteString -> AESState
+aesStateSplit bs =
+    ( bsToW32 $ nthChunk 4 0 bs
+    , bsToW32 $ nthChunk 4 1 bs
+    , bsToW32 $ nthChunk 4 2 bs
+    , bsToW32 $ nthChunk 4 3 bs
+    )
+
+bsToW32 :: B.ByteString -> Word32
+bsToW32 bs =
+    bytesToW32 (a, b, c, d)
+        where
+            [a, b, c, d] = B.unpack bs
+
+w32ToBs :: Word32 -> B.ByteString
+w32ToBs w =
+    B.pack [a, b, c, d]
+        where
+            (a, b, c, d) = w32toBytes w
+
+bytesToW32 :: (Word8, Word8, Word8, Word8) -> Word32
+bytesToW32 (a, b, c, d) =
+      fromIntegral a
+    + 0x0000100 * fromIntegral b
+    + 0x0010000 * fromIntegral c
+    + 0x1000000 * fromIntegral d 
+
+keySchedule :: B.ByteString -> [AESState]
 keySchedule k =
-    map snd $ take 11 $ iterate go (1, k)
+    map snd $ take 11 $ iterate go (1, k0)
         where
             go (n, b) = (n+1, keyExpand n b)
+            k0 = aesStateSplit k
 
-keyExpand :: Word8 -> B.ByteString -> B.ByteString
-keyExpand n k =
-    stateJoin ka' kb' kc' kd'
+keyExpand :: Word8 -> AESState -> AESState
+keyExpand n (ka, kb, kc, kd) =
+    (ka', kb', kc', kd')
         where
-            (ka, kb, kc, kd) = stateSplit k
-            ka' = xorBuffer (scheduleCore n kd) ka
-            kb' = xorBuffer kb ka'
-            kc' = xorBuffer kc kb'
-            kd' = xorBuffer kd kc'
+            ka' = xor (scheduleCore n kd) ka
+            kb' = xor kb ka'
+            kc' = xor kc kb'
+            kd' = xor kd kc'
 
 rcon :: UArray Word8 Word8
 rcon = listArray (0, 255)
@@ -299,25 +341,15 @@ gmul14 = listArray (0, 255)
     , 0xd7, 0xd9, 0xcb, 0xc5, 0xef, 0xe1, 0xf3, 0xfd, 0xa7, 0xa9, 0xbb, 0xb5, 0x9f, 0x91, 0x83, 0x8d
     ]
 
-scheduleCore :: Word8 -> B.ByteString -> B.ByteString
+scheduleCore :: Word8 -> Word32 -> Word32
 scheduleCore i k =
-    B.pack [ka', kb', kc', kd']
+    bytesToW32 (ka', kb', kc', kd')
         where
             ka' = sbox ! kb `xor` rcon ! i
             kb' = sbox ! kc
             kc' = sbox ! kd
             kd' = sbox ! ka
-            [ka, kb, kc, kd] = B.unpack k
-
-stateJoin :: B.ByteString -> B.ByteString -> B.ByteString -> B.ByteString -> B.ByteString
-stateJoin a b c d =
-    B.concat [a, b, c, d]
-
-stateSplit :: B.ByteString -> (B.ByteString, B.ByteString, B.ByteString, B.ByteString)
-stateSplit b =
-    (chunk 0, chunk 1, chunk 2, chunk 3)
-        where
-            chunk n = B.take 4 $ B.drop (4*n) b
+            (ka, kb, kc, kd) = w32toBytes k
 
 aes128decryptECB :: B.ByteString -> B.ByteString -> B.ByteString
 aes128decryptECB key cipher =
@@ -364,105 +396,125 @@ fullSplit l = (head l, tail $ init l, last l)
 
 aes128cryptBlock :: B.ByteString -> B.ByteString -> B.ByteString
 aes128cryptBlock key =
-      addRoundKeyRev finalRoundKey
+      aesStateJoin
+    . addRoundKeyRev finalRoundKey
     . shiftRowsRev
     . subBytesRev
     . rounds (reverse roundKeys)
     . addRoundKeyRev initialRoundKey
+    . aesStateSplit
         where
             (initialRoundKey, roundKeys, finalRoundKey) = fullSplit $ keySchedule key
-            rounds [] s = s
-            rounds (k:ks) s = aesRound k $ rounds ks s
+            rounds ks s = foldr aesRound s ks
 
-aesRound :: B.ByteString -> B.ByteString -> B.ByteString
-aesRound k = addRoundKey k . mixColumns . shiftRows . subBytes
+aesRound :: AESState -> AESState -> AESState
+aesRound k =
+    addRoundKey k . mixColumns . shiftRows . subBytes
 
 aes128decryptBlock :: B.ByteString -> B.ByteString -> B.ByteString
 aes128decryptBlock key =
-      addRoundKeyRev initialRoundKey
+      aesStateJoin
+    . addRoundKeyRev initialRoundKey
     . rounds roundKeys
     . subBytesRev
     . shiftRowsRev
     . addRoundKeyRev finalRoundKey
+    . aesStateSplit
         where
             (initialRoundKey, roundKeys, finalRoundKey) = fullSplit $ keySchedule key
             rounds ks s = foldr aesRoundRev s ks
 
-aesRoundRev :: B.ByteString -> B.ByteString -> B.ByteString
+aesRoundRev :: AESState -> AESState -> AESState
 aesRoundRev k = subBytesRev . shiftRowsRev . mixColumnsRev . addRoundKeyRev k
 
-addRoundKey, addRoundKeyRev :: B.ByteString -> B.ByteString -> B.ByteString
-addRoundKey = xorBuffer
-addRoundKeyRev = xorBuffer
+addRoundKey, addRoundKeyRev :: AESState -> AESState -> AESState
+addRoundKey = forColumn2 xor
+addRoundKeyRev = addRoundKey 
 
--- a0 a1 a2 a3       a0 a1 a2 a3
--- b0 b1 b2 b3       b1 b2 b3 b0
--- c0 c1 c2 c3  -->  c2 c3 c0 c1
--- d0 d1 d2 d3       d3 d0 d1 d2
---
---  0  4  8 12        0  4  8 12
---  1  5  9 13        5  9 13  1
---  2  6 10 14  -->  10 14  2  6
---  3  7 11 15       15  3  7 11
-shiftRows :: B.ByteString -> B.ByteString
-shiftRows b =
-    B.pack $ map (\ i -> B.index b i) idx
+-- a0 b0 c0 d0       a0 b0 c0 d0
+-- a1 b1 c1 d1       b1 c1 d1 a1
+-- a2 b2 c2 d2  -->  c2 d2 a2 b2
+-- a3 b3 c3 d3       d3 a3 b3 c3
+shiftRows :: AESState -> AESState
+shiftRows (a, b, c, d) =
+    ( bytesToW32 (a0, b1, c2, d3)
+    , bytesToW32 (b0, c1, d2, a3)
+    , bytesToW32 (c0, d1, a2, b3)
+    , bytesToW32 (d0, a1, b2, c3)
+    )
         where
-            idx = [0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11]
+            (a0, a1, a2, a3) = w32toBytes a
+            (b0, b1, b2, b3) = w32toBytes b
+            (c0, c1, c2, c3) = w32toBytes c
+            (d0, d1, d2, d3) = w32toBytes d
 
--- a0 a1 a2 a3       a0 a1 a2 a3
--- b0 b1 b2 b3       b3 b0 b1 b2
--- c0 c1 c2 c3  -->  c2 c3 c0 c1
--- d0 d1 d2 d3       d1 d2 d3 d0
---
---  0  4  8 12        0  4  8 12
---  1  5  9 13       13  1  5  9
---  2  6 10 14  -->  10 14  2  6
---  3  7 11 15        7 11 15  3
-shiftRowsRev :: B.ByteString -> B.ByteString
-shiftRowsRev b =
-    B.pack $ map (\ i -> B.index b i) idx
+-- a0 b0 c0 d0       a0 b0 c0 d0 
+-- a1 b1 c1 d1       d1 a1 b1 c1
+-- a2 b2 c2 d2  -->  c2 d2 a2 b2
+-- a3 b3 c3 d3       b3 c3 d3 a3
+shiftRowsRev :: AESState -> AESState
+shiftRowsRev (a, b, c, d) =
+    ( bytesToW32 (a0, d1, c2, b3)
+    , bytesToW32 (b0, a1, d2, c3)
+    , bytesToW32 (c0, b1, a2, d3)
+    , bytesToW32 (d0, c1, b2, a3)
+    )
         where
-            idx = [0, 13, 10, 7, 4, 1, 14, 11, 8, 5, 2, 15, 12, 9, 6, 3]
+            (a0, a1, a2, a3) = w32toBytes a
+            (b0, b1, b2, b3) = w32toBytes b
+            (c0, c1, c2, c3) = w32toBytes c
+            (d0, d1, d2, d3) = w32toBytes d
 
-subBytes :: B.ByteString -> B.ByteString
-subBytes s =
-    B.map (\ w -> sbox ! w) s
+subBytes :: AESState -> AESState
+subBytes =
+    forByte $ \ w -> sbox ! w
 
-subBytesRev :: B.ByteString -> B.ByteString
-subBytesRev s =
-    B.map (\ w -> invSbox ! w) s
+subBytesRev :: AESState -> AESState
+subBytesRev =
+    forByte $ \ w -> invSbox ! w
 
-mixColumnsRev :: B.ByteString -> B.ByteString
-mixColumnsRev s =
-    forColumn mixColumnRev s
+mixColumnsRev :: AESState -> AESState
+mixColumnsRev =
+    forColumn mixColumnRev
 
-forColumn :: (B.ByteString -> B.ByteString) -> B.ByteString -> B.ByteString
-forColumn f s =
-    stateJoin (f a) (f b) (f c) (f d)
+forByte :: (Word8 -> Word8) -> AESState -> AESState
+forByte f =
+    forColumn (mapBytes f)
+
+mapBytes :: (Word8 -> Word8) -> Word32 -> Word32
+mapBytes f w =
+    bytesToW32 (f a, f b, f c, f d)
         where
-            (a, b, c, d) = stateSplit s
+            (a, b, c, d) = w32toBytes w
 
-mixColumnRev :: B.ByteString -> B.ByteString
-mixColumnRev bs =
-    B.pack [r0, r1, r2, r3]
+forColumn :: (Word32 -> Word32) -> AESState -> AESState
+forColumn f (a, b, c, d) =
+    (f a, f b, f c, f d)
+
+forColumn2 :: (Word32 -> Word32 -> Word32) -> AESState -> AESState -> AESState
+forColumn2 f (xa, xb, xc, xd) (ya, yb, yc, yd) =
+    (f xa ya , f xb yb , f xc yc , f xd yd)
+
+mixColumnRev :: Word32 -> Word32
+mixColumnRev w =
+    bytesToW32 (r0, r1, r2, r3)
         where
             r0 = (gmul14 ! a0) `xor` (gmul9 ! a3) `xor` (gmul13 ! a2) `xor` (gmul11 ! a1)
             r1 = (gmul14 ! a1) `xor` (gmul9 ! a0) `xor` (gmul13 ! a3) `xor` (gmul11 ! a2)
             r2 = (gmul14 ! a2) `xor` (gmul9 ! a1) `xor` (gmul13 ! a0) `xor` (gmul11 ! a3)
             r3 = (gmul14 ! a3) `xor` (gmul9 ! a2) `xor` (gmul13 ! a1) `xor` (gmul11 ! a0)
-            [a0, a1, a2, a3] = B.unpack bs
+            (a0, a1, a2, a3) = w32toBytes w
 
-mixColumns :: B.ByteString -> B.ByteString
-mixColumns s =
-    forColumn mixColumn s
+mixColumns :: AESState -> AESState
+mixColumns =
+    forColumn mixColumn
 
-mixColumn :: B.ByteString -> B.ByteString
+mixColumn :: Word32 -> Word32
 mixColumn bs =
-    B.pack [r0, r1, r2, r3]
+    bytesToW32 (r0, r1, r2, r3)
         where
             r0 = (gmul2 ! a0) `xor` a3 `xor` a2 `xor` (gmul3 ! a1);
 	    r1 = (gmul2 ! a1) `xor` a0 `xor` a3 `xor` (gmul3 ! a2);
 	    r2 = (gmul2 ! a2) `xor` a1 `xor` a0 `xor` (gmul3 ! a3);
 	    r3 = (gmul2 ! a3) `xor` a2 `xor` a1 `xor` (gmul3 ! a0);
-            [a0, a1, a2, a3] = B.unpack bs
+            (a0, a1, a2, a3) = w32toBytes bs

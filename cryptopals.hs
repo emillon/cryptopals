@@ -140,10 +140,6 @@ tryKeySize n bs =
             d = nthChunk n 3 bs
             chunkPairs = [ (a, b), (a, c), (a, d) , (b, c), (c, d) , (c, d) ]
 
-nthChunk :: Int -> Int -> B.ByteString -> B.ByteString
-nthChunk sz i b =
-    B.take sz $ B.drop (i * sz) b
-
 scoreKeySize :: Int -> B.ByteString -> Float
 scoreKeySize ks b =
     fromIntegral dist / fromIntegral ks
