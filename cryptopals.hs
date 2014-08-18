@@ -14,6 +14,7 @@ import qualified Data.Map as M
 
 import AES
 import Base64
+import KeyValue
 import LetterFreq
 import Misc
 import XOR
@@ -334,6 +335,23 @@ chall12 :: Test
 chall12 = "Challenge 12" ~:
     unknownBytes ~=? afterAesUnknown
 
+chall13 :: Test
+chall13 = "Challenge 13" ~: map (uncurry tc)
+    [ ( ""
+      , M.empty
+      )
+    , ( "foo=bar&baz=qux&zap=zazzle"
+      , M.fromList
+          [ ("foo", "bar")
+          , ("baz", "qux")
+          , ("zap", "zazzle")
+          ]
+      )
+    ]
+        where
+            tc input spec =
+                spec ~=? parseKeyValue input
+
 main :: IO ()
 main = do
     void $ runTestTT $ TestList
@@ -349,4 +367,5 @@ main = do
         , chall10
         , chall11
         , chall12
+        , chall13
         ]
