@@ -4,7 +4,11 @@ module Misc ( chunksOfSize
             , snd3
             , thr3
             , uncurry3
+            , findIndex2
             ) where
+
+import Data.List
+import Data.Maybe
 
 import qualified Data.ByteString as B
 
@@ -30,3 +34,7 @@ thr3 (_, _, z) = z
 
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f (x, y, z) = f x y z
+
+findIndex2 :: (a -> a -> Bool) -> [a] -> Int
+findIndex2 f l =
+    fromJust $ findIndex (uncurry f) $ zip l (tail l)

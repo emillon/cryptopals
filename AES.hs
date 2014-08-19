@@ -6,6 +6,7 @@ module AES ( aesTests
            , aes128cryptECB
            , aes128cryptCBC
            , checkAESProps
+           , padPkcs7
            ) where
 
 import Control.Monad.RWS hiding (state)
@@ -566,3 +567,9 @@ prop_aes128blockInv (GeneratedBS k) (GeneratedBS b) =
 
 checkAESProps :: IO Bool
 checkAESProps = $quickCheckAll
+
+padPkcs7 :: B.ByteString -> B.ByteString
+padPkcs7 b =
+    B.append b $ B.replicate n (fromIntegral n)
+        where
+            n = 16 - (B.length b `mod` 16)
