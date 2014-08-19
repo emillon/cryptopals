@@ -34,3 +34,14 @@ http://cryptopals.com/
   - [ ] Crack an MT19937 seed
   - [ ] Clone an MT19937 RNG from its output
   - [ ] Create the MT19937 stream cipher and break it
+
+## Set 4
+
+  - [ ] Break "random access read/write" AES CTR
+  - [ ] CTR bitflipping
+  - [ ] Recover the key from CBC with IV=Key
+  - [ ] Implement a SHA-1 keyed MAC
+  - [ ] Break a SHA-1 keyed MAC using length extension
+  - [ ] Break an MD4 keyed MAC using length extension
+  - [ ] Implement and break HMAC-SHA1 with an artificial timing leak
+  - [ ] Break HMAC-SHA1 with a slightly less artificial timing leak
