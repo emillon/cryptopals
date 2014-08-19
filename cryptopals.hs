@@ -231,6 +231,14 @@ padPkcs7 b =
                 0 -> 0
                 l -> 16 - l
 
+padSpaces :: String -> String
+padSpaces l =
+    l ++ replicate n ' '
+        where
+            n = case length l `mod` 16 of
+                0 -> 0
+                x -> 16 - x
+
 chall10 :: Test
 chall10 = "Challenge 10" ~: do
     cipher <- readFileBase64 "challenge-data/10.txt"
@@ -347,6 +355,17 @@ chall13 = "Challenge 13" ~: map (uncurry tc)
         where
             tc input spec =
                 spec ~=? parseKeyValue input
+
+chall13key :: B.ByteString
+chall13key = unHex "2598 42aa dc49 cc6f 4b18 68e1 8c2f 5d25"
+
+c13encode :: String -> B.ByteString
+c13encode =
+    aes128cryptECB chall13key . string2bs . padSpaces . profileFor
+
+c13decode :: B.ByteString -> M.Map String String
+c13decode bs =
+    parseKeyValue $ bs2string $ aes128decryptECB chall13key bs
 
 main :: IO ()
 main = do
