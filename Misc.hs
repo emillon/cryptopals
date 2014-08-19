@@ -5,10 +5,13 @@ module Misc ( chunksOfSize
             , thr3
             , uncurry3
             , findIndex2
+            , randomBytes
             ) where
 
+import Control.Monad
 import Data.List
 import Data.Maybe
+import System.Random
 
 import qualified Data.ByteString as B
 
@@ -38,3 +41,8 @@ uncurry3 f (x, y, z) = f x y z
 findIndex2 :: (a -> a -> Bool) -> [a] -> Int
 findIndex2 f l =
     fromJust $ findIndex (uncurry f) $ zip l (tail l)
+
+randomBytes :: Int -> IO B.ByteString
+randomBytes n = do
+    bytes <- forM [1..n] $ \ _ -> randomIO
+    return $ B.pack bytes

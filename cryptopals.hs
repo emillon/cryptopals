@@ -167,11 +167,6 @@ chall10 = "Challenge 10" ~: do
         plain = aes128decryptCBC key iv cipher
     assert $ string2bs "Let the witch doctor" `B.isInfixOf` plain
 
-randomBytes :: Int -> IO B.ByteString
-randomBytes n = do
-    bytes <- forM [1..n] $ \ _ -> randomIO
-    return $ B.pack bytes
-
 data AESMode = ECB | CBC deriving (Eq, Show)
 
 aesRandomMode :: B.ByteString -> IO (B.ByteString, AESMode)
@@ -203,9 +198,17 @@ chall11 = "Challenge 11" ~: do
     results <- mapM (\ _ -> aesECBoracle) [1::Int ..100]
     assert $ and results
 
+chall12target :: B.ByteString
+chall12target = decodeBase64 $ concat
+    [ "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg"
+    , "aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq"
+    , "dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"
+    , "YnkK"
+    ]
+
 chall12 :: Test
 chall12 = "Challenge 12" ~:
-    unknownBytes ~=? afterAesUnknown
+    unknownBytes (aesUnknown chall12target) ~=? chall12target
 
 chall13 :: Test
 chall13 = "Challenge 13" ~: map (uncurry tc)
@@ -252,6 +255,11 @@ chall13accept = "Challenge 13 acceptance" ~: do
             c2 = nthChunk 16 i2 $ c13encode e2
             c3 = nthChunk 16 i3 $ c13encode e3
             cookie = c13decode $ B.concat [c1, c2, c3]
+
+chall14 :: Test
+chall14 = "Challenge 14" ~: do
+    target <- unknownBytesRandom
+    assert $ target == chall14target
 
 main :: IO ()
 main = do
