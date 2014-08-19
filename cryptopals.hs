@@ -1,6 +1,8 @@
 import Control.Applicative
 import Control.Monad
 import Data.List
+import Data.List.Split hiding (chunk)
+import Data.Maybe
 import Data.Ord
 import System.Environment
 import System.Random
@@ -218,6 +220,7 @@ chall13 = "Challenge 13" ~: map (uncurry tc)
           ]
       )
     ]
+    ++ [chall13accept]
         where
             tc input spec =
                 spec ~=? parseKeyValue input
@@ -232,6 +235,23 @@ c13encode =
 c13decode :: B.ByteString -> M.Map String String
 c13decode bs =
     parseKeyValue $ bs2string $ aes128decryptECB chall13key bs
+
+chall13accept :: Test
+chall13accept = "Challenge 13 acceptance" ~: do
+    cookie M.! "role" ~=? "admin"
+        where
+            egen f = head $ mapMaybe (gen f) [1..16]
+            gen ok n = do
+                let email = replicate n 'A' ++ "admin"
+                i <- findIndex ok $ chunksOf 16 $ profileFor email
+                return (email, i)
+            (e1, i1) = egen $ \ b -> "role=" `isSuffixOf` b
+            (e2, i2) = egen $ \ b -> "admin" `isPrefixOf` b
+            (e3, i3) = egen $ \ b -> "uid=" `isPrefixOf` b
+            c1 = B.take (16*(i1+1)) $ c13encode e1
+            c2 = nthChunk 16 i2 $ c13encode e2
+            c3 = nthChunk 16 i3 $ c13encode e3
+            cookie = c13decode $ B.concat [c1, c2, c3]
 
 main :: IO ()
 main = do

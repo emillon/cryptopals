@@ -19,7 +19,7 @@ http://cryptopals.com/
   - [X] Implement CBC mode
   - [X] An ECB/CBC detection oracle
   - [X] Byte-at-a-time ECB decryption (Simple)
-  - [ ] ECB cut-and-paste
+  - [X] ECB cut-and-paste
   - [ ] Byte-at-a-time ECB decryption (Harder)
   - [ ] PKCS#7 padding validation
   - [ ] CBC bitflipping attacks

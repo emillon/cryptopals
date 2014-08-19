@@ -11,9 +11,16 @@ import qualified Data.Map as M
 parseKeyValue :: String -> M.Map String String
 parseKeyValue "" = M.empty
 parseKeyValue s =
-    M.fromList $ map parseKV $ splitOn "&" $ s
+    foldr go M.empty $ splitOn "&" s
         where
-            parseKV = listToPair . splitOn "="
+            go kv m =
+                let (k, v) = parseKV kv in
+                M.insert k v m
+
+parseKV s =
+    case listToPair (splitOn "=" s) of
+        Nothing -> error $ "parseKV " ++ show s
+        Just x -> x
 
 encodeKeyValue :: M.Map String String -> String
 encodeKeyValue m =
@@ -22,9 +29,9 @@ encodeKeyValue m =
             go (k, v) =
                 k ++ "=" ++ v
 
-listToPair :: Show a => [a] -> (a, a)
-listToPair [k, v] = (k, v)
-listToPair l = error $ "listToPair " ++ show l
+listToPair :: [a] -> Maybe (a, a)
+listToPair [k, v] = Just (k, v)
+listToPair _ = Nothing
 
 profileFor :: String -> String
 profileFor email =
