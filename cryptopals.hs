@@ -6,6 +6,7 @@ import Data.List
 import Data.Maybe
 import Data.Ord
 import Data.Word
+import System.Environment
 import System.Random
 import Test.HUnit
 
@@ -368,18 +369,21 @@ c13decode bs =
 
 main :: IO ()
 main = do
-    void $ runTestTT $ TestList
-        [ chall01
-        , chall02
-        , chall03
-        , chall05
-        , chall06
-        , aesTests
-        , chall07
-        , chall08
-        , chall09
-        , chall10
-        , chall11
-        , chall12
-        , chall13
-        ]
+    args <- getArgs
+    case args of
+        ["-c"] -> void $ checkAESProps
+        _ -> void $ runTestTT $ TestList
+            [ chall01
+            , chall02
+            , chall03
+            , chall05
+            , chall06
+            , aesTests
+            , chall07
+            , chall08
+            , chall09
+            , chall10
+            , chall11
+            , chall12
+            , chall13
+            ]

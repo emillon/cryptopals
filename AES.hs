@@ -1,8 +1,11 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module AES ( aesTests
            , aes128decryptECB
            , aes128decryptCBC
            , aes128cryptECB
            , aes128cryptCBC
+           , checkAESProps
            ) where
 
 import Control.Monad.RWS hiding (state)
@@ -10,6 +13,8 @@ import Data.Array.Unboxed
 import Data.Bits
 import Data.Word
 import Test.HUnit
+import Test.QuickCheck.All
+import Test.QuickCheck.Arbitrary
 
 import qualified Data.ByteString as B
 
@@ -143,7 +148,7 @@ bytesToW32 (a, b, c, d) =
       fromIntegral a
     + 0x0000100 * fromIntegral b
     + 0x0010000 * fromIntegral c
-    + 0x1000000 * fromIntegral d 
+    + 0x1000000 * fromIntegral d
 
 keySchedule :: B.ByteString -> [AESState]
 keySchedule k =
@@ -397,11 +402,11 @@ fullSplit l = (head l, tail $ init l, last l)
 aes128cryptBlock :: B.ByteString -> B.ByteString -> B.ByteString
 aes128cryptBlock key =
       aesStateJoin
-    . addRoundKeyRev finalRoundKey
-    . shiftRowsRev
-    . subBytesRev
+    . addRoundKey finalRoundKey
+    . shiftRows
+    . subBytes
     . rounds (reverse roundKeys)
-    . addRoundKeyRev initialRoundKey
+    . addRoundKey initialRoundKey
     . aesStateSplit
         where
             (initialRoundKey, roundKeys, finalRoundKey) = fullSplit $ keySchedule key
@@ -429,7 +434,7 @@ aesRoundRev k = subBytesRev . shiftRowsRev . mixColumnsRev . addRoundKeyRev k
 
 addRoundKey, addRoundKeyRev :: AESState -> AESState -> AESState
 addRoundKey = forColumn2 xor
-addRoundKeyRev = addRoundKey 
+addRoundKeyRev = addRoundKey
 
 -- a0 b0 c0 d0       a0 b0 c0 d0
 -- a1 b1 c1 d1       b1 c1 d1 a1
@@ -448,7 +453,7 @@ shiftRows (a, b, c, d) =
             (c0, c1, c2, c3) = w32toBytes c
             (d0, d1, d2, d3) = w32toBytes d
 
--- a0 b0 c0 d0       a0 b0 c0 d0 
+-- a0 b0 c0 d0       a0 b0 c0 d0
 -- a1 b1 c1 d1       d1 a1 b1 c1
 -- a2 b2 c2 d2  -->  c2 d2 a2 b2
 -- a3 b3 c3 d3       b3 c3 d3 a3
@@ -518,3 +523,46 @@ mixColumn bs =
 	    r2 = (gmul2 ! a2) `xor` a1 `xor` a0 `xor` (gmul3 ! a3);
 	    r3 = (gmul2 ! a3) `xor` a2 `xor` a1 `xor` (gmul3 ! a0);
             (a0, a1, a2, a3) = w32toBytes bs
+
+prop_addRoundKeyInv :: AESState -> AESState -> Bool
+prop_addRoundKeyInv k s =
+    addRoundKeyRev k (addRoundKey k s) == s
+
+prop_shiftRowsInv :: AESState -> Bool
+prop_shiftRowsInv s =
+    shiftRowsRev (shiftRows s) == s
+
+prop_subBytesInv :: AESState -> Bool
+prop_subBytesInv s =
+    subBytesRev (subBytes s) == s
+
+prop_mixColumnsInv :: AESState -> Bool
+prop_mixColumnsInv s =
+    mixColumnsRev (mixColumns s) == s
+
+prop_aesRoundInv :: AESState -> AESState -> Bool
+prop_aesRoundInv k s =
+    aesRoundRev k (aesRound k s) == s
+
+newtype GeneratedBS = GeneratedBS B.ByteString
+    deriving (Show)
+
+instance Arbitrary GeneratedBS where
+    arbitrary = do
+        bytes <- vector 16
+        return $ GeneratedBS $ B.pack bytes
+
+prop_joinSplit :: GeneratedBS -> Bool
+prop_joinSplit (GeneratedBS b) =
+    aesStateJoin (aesStateSplit b) == b
+
+prop_splitJoin :: AESState -> Bool
+prop_splitJoin s =
+    aesStateSplit (aesStateJoin s) == s
+
+prop_aes128blockInv :: GeneratedBS -> GeneratedBS -> Bool
+prop_aes128blockInv (GeneratedBS k) (GeneratedBS b) =
+    aes128decryptBlock k (aes128cryptBlock k b) == b
+
+checkAESProps :: IO Bool
+checkAESProps = $quickCheckAll
