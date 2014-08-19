@@ -1,6 +1,6 @@
 module ByteAtATime ( aesUnknown
                    , unknownBytes
-                   , chall14target
+                   , aesUnknownRandom
                    , unknownBytesRandom
                    ) where
 
@@ -53,19 +53,13 @@ unknownBytes f =
                 r <- nextByte f $ B.pack l
                 return (r, l++[r])
 
-chall14target :: B.ByteString
-chall14target = decodeBase64 $ concat
-    [ "T3UgdCdldGFpcz8KSW52aXRlIHBhciBkZXMgcG90ZXMgYSB1bmUgdGV1ZiBldCBvbiBzJ2FtdXNh"
-    , "aXQgYmllbgpKZSBuJ2FpIHBhcyB2dSBsJ2hldXJlIHF1J2lsIGV0YWl0Cg=="
-    ]
-
-aesUnknownRandom :: B.ByteString -> IO B.ByteString
-aesUnknownRandom input = do
+aesUnknownRandom :: B.ByteString -> B.ByteString -> IO B.ByteString
+aesUnknownRandom after input = do
     n <- randomRIO (5, 10)
     before <- randomBytes n
-    return $ aes128cryptECB key $ padPkcs7 $ B.concat [before, input, chall14target]
+    return $ aes128cryptECB key $ padPkcs7 $ B.concat [before, input, after]
         where
             key = unHex "5930 13d5 6952 3d3a 83ad 1143 90e5 64a1"
 
-unknownBytesRandom :: IO B.ByteString
-unknownBytesRandom = return B.empty
+unknownBytesRandom :: (B.ByteString -> IO B.ByteString) -> IO B.ByteString
+unknownBytesRandom _ = return B.empty

@@ -256,9 +256,15 @@ chall13accept = "Challenge 13 acceptance" ~: do
             c3 = nthChunk 16 i3 $ c13encode e3
             cookie = c13decode $ B.concat [c1, c2, c3]
 
+chall14target :: B.ByteString
+chall14target = decodeBase64 $ concat
+    [ "T3UgdCdldGFpcz8KSW52aXRlIHBhciBkZXMgcG90ZXMgYSB1bmUgdGV1ZiBldCBvbiBzJ2FtdXNh"
+    , "aXQgYmllbgpKZSBuJ2FpIHBhcyB2dSBsJ2hldXJlIHF1J2lsIGV0YWl0Cg=="
+    ]
+
 chall14 :: Test
 chall14 = "Challenge 14" ~: do
-    target <- unknownBytesRandom
+    target <- unknownBytesRandom $ aesUnknownRandom chall14target
     assert $ target == chall14target
 
 main :: IO ()
