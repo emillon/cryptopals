@@ -27,10 +27,7 @@ nTimesA n =
 
 detectBlockSize :: (B.ByteString -> B.ByteString) -> Int
 detectBlockSize f =
-    (1+) $ findIndex2 same $ map (\n -> B.take n $ f $ nTimesA n) [1..30]
-        where
-            same x y =
-                x == B.init y
+    B.length $ f B.empty
 
 nextByte :: (B.ByteString -> B.ByteString) -> B.ByteString -> Maybe Word8
 nextByte f start =
