@@ -201,7 +201,7 @@ chall08 = "Challenge 08" ~: do
 
 chall09 :: Test
 chall09 = "Challenge 09" ~: map (uncurry tc)
-    [ ("", "")
+    [ (""                , "10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10")
     , ("A"               , "41 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f 0f")
     , ("AA"              , "41 41 0e 0e 0e 0e 0e 0e 0e 0e 0e 0e 0e 0e 0e 0e")
     , ("AAA"             , "41 41 41 0d 0d 0d 0d 0d 0d 0d 0d 0d 0d 0d 0d 0d")
@@ -217,7 +217,8 @@ chall09 = "Challenge 09" ~: map (uncurry tc)
     , ("AAAABBBBCCCCD"   , "41 41 41 41 42 42 42 42 43 43 43 43 44 03 03 03")
     , ("AAAABBBBCCCCDD"  , "41 41 41 41 42 42 42 42 43 43 43 43 44 44 02 02")
     , ("AAAABBBBCCCCDDD" , "41 41 41 41 42 42 42 42 43 43 43 43 44 44 44 01")
-    , ("AAAABBBBCCCCDDDD", "41 41 41 41 42 42 42 42 43 43 43 43 44 44 44 44")
+    , ("AAAABBBBCCCCDDDD", "41 41 41 41 42 42 42 42 43 43 43 43 44 44 44 44"
+                        ++ "10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10")
     ]
     where
         tc input spec =
@@ -227,9 +228,7 @@ padPkcs7 :: B.ByteString -> B.ByteString
 padPkcs7 b =
     B.append b $ B.replicate n (fromIntegral n)
         where
-            n = case B.length b `mod` 16 of
-                0 -> 0
-                l -> 16 - l
+            n = 16 - (B.length b `mod` 16)
 
 padSpaces :: String -> String
 padSpaces l =
