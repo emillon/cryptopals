@@ -15,14 +15,14 @@ http://cryptopals.com/
 
 ## Set 2
 
-  - [X] Implement PKCS#7 padding
-  - [X] Implement CBC mode
-  - [X] An ECB/CBC detection oracle
-  - [X] Byte-at-a-time ECB decryption (Simple)
-  - [X] ECB cut-and-paste
-  - [ ] Byte-at-a-time ECB decryption (Harder)
-  - [ ] PKCS#7 padding validation
-  - [ ] CBC bitflipping attacks
+  - [X] [Implement PKCS#7 padding](http://cryptopals.com/sets/2/challenges/9/)
+  - [X] [Implement CBC mode](http://cryptopals.com/sets/2/challenges/10/)
+  - [X] [An ECB/CBC detection oracle](http://cryptopals.com/sets/2/challenges/11/)
+  - [X] [Byte-at-a-time ECB decryption (Simple)](http://cryptopals.com/sets/2/challenges/12/)
+  - [X] [ECB cut-and-paste](http://cryptopals.com/sets/2/challenges/13/)
+  - [ ] [Byte-at-a-time ECB decryption (Harder)](http://cryptopals.com/sets/2/challenges/14/)
+  - [ ] [PKCS#7 padding validation](http://cryptopals.com/sets/2/challenges/15/)
+  - [ ] [CBC bitflipping attacks](http://cryptopals.com/sets/2/challenges/16/)
 
 ## Set 3
 
