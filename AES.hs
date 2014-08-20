@@ -7,6 +7,7 @@ module AES ( aesTests
            , aes128cryptCBC
            , checkAESProps
            , padPkcs7
+           , checkPadPkcs7
            ) where
 
 import Control.Monad.RWS hiding (state)
@@ -573,3 +574,14 @@ padPkcs7 b =
     B.append b $ B.replicate n (fromIntegral n)
         where
             n = 16 - (B.length b `mod` 16)
+
+checkPadPkcs7 :: B.ByteString -> Maybe B.ByteString
+checkPadPkcs7 b =
+    if isValid
+        then Just msg
+        else Nothing
+        where
+            lastByte = B.last b
+            padLen = fromIntegral lastByte
+            (msg, pad) = B.splitAt (B.length b - padLen) b
+            isValid = pad == B.replicate padLen lastByte

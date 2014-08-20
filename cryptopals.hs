@@ -267,6 +267,22 @@ chall14 = "Challenge 14" ~: do
     target <- unknownBytesRandom $ aesUnknownRandom chall14target
     assert $ target == chall14target
 
+chall15 :: Test
+chall15 =
+    "Challenge 15" ~: map (uncurry tc)
+        [ ("49 43 45 20 49 43 45 20 42 41 42 59 04 04 04 04", Just "4943 4520 4943 4520 4241 4259")
+        , ("49 43 45 20 49 43 45 20 42 41 42 59 05 05 05 05", Nothing)
+        , ("49 43 45 20 49 43 45 20 42 41 42 59 01 02 03 04", Nothing)
+        , ("4c 4f 4c 20 4c 4f 4c 20 4c 4f 4c 20 4c 4f 4c 20", Nothing)
+        , ("4c 4f 4c 20 4c 4f 4c 20 4c 4f 4c 20 4c 4f 4c 20"
+        ++ "10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10"
+          , Just "4c 4f 4c 20 4c 4f 4c 20 4c 4f 4c 20 4c 4f 4c 20"
+          )
+        ]
+    where
+        tc input spec =
+            fmap unHex spec ~=? checkPadPkcs7 (unHex input)
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -286,4 +302,5 @@ main = do
             , chall11
             , chall12
             , chall13
+            , chall15
             ]
