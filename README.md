@@ -4,14 +4,14 @@ http://cryptopals.com/
 
 ## Set 1
 
-  - [X] Convert hex to base64
-  - [X] Fixed XOR
-  - [X] Single-byte XOR cipher
-  - [X] Detect single-character XOR
-  - [X] Implement repeating-key XOR
-  - [X] Break repeating-key XOR
-  - [X] AES in ECB mode
-  - [X] Detect AES in ECB mode
+  - [X] [Convert hex to base64](http://cryptopals.com/sets/1/challenges/1/)
+  - [X] [Fixed XOR](http://cryptopals.com/sets/1/challenges/2/)
+  - [X] [Single-byte XOR cipher](http://cryptopals.com/sets/1/challenges/3/)
+  - [X] [Detect single-character XOR](http://cryptopals.com/sets/1/challenges/4/)
+  - [X] [Implement repeating-key XOR](http://cryptopals.com/sets/1/challenges/5/)
+  - [X] [Break repeating-key XOR](http://cryptopals.com/sets/1/challenges/6/)
+  - [X] [AES in ECB mode](http://cryptopals.com/sets/1/challenges/7/)
+  - [X] [Detect AES in ECB mode](http://cryptopals.com/sets/1/challenges/8/)
 
 ## Set 2
 
