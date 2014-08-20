@@ -26,14 +26,14 @@ http://cryptopals.com/
 
 ## Set 3
 
-  - [ ] The CBC padding oracle
-  - [ ] Implement CTR, the stream cipher mode
-  - [ ] Break fixed-nonce CTR mode using substitions
-  - [ ] Break fixed-nonce CTR statistically
-  - [ ] Implement the MT19937 Mersenne Twister RNG
-  - [ ] Crack an MT19937 seed
-  - [ ] Clone an MT19937 RNG from its output
-  - [ ] Create the MT19937 stream cipher and break it
+  - [ ] [The CBC padding oracle](http://cryptopals.com/sets/3/challenges/17/)
+  - [ ] [Implement CTR, the stream cipher mode](http://cryptopals.com/sets/3/challenges/18/)
+  - [ ] [Break fixed-nonce CTR mode using substitions](http://cryptopals.com/sets/3/challenges/19/)
+  - [ ] [Break fixed-nonce CTR statistically](http://cryptopals.com/sets/3/challenges/20/)
+  - [ ] [Implement the MT19937 Mersenne Twister RNG](http://cryptopals.com/sets/3/challenges/21/)
+  - [ ] [Crack an MT19937 seed](http://cryptopals.com/sets/3/challenges/22/)
+  - [ ] [Clone an MT19937 RNG from its output](http://cryptopals.com/sets/3/challenges/23/)
+  - [ ] [Create the MT19937 stream cipher and break it](http://cryptopals.com/sets/3/challenges/24/)
 
 ## Set 4
 
