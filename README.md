@@ -22,7 +22,7 @@ http://cryptopals.com/
   - [X] [ECB cut-and-paste](http://cryptopals.com/sets/2/challenges/13/)
   - [ ] [Byte-at-a-time ECB decryption (Harder)](http://cryptopals.com/sets/2/challenges/14/)
   - [X] [PKCS#7 padding validation](http://cryptopals.com/sets/2/challenges/15/)
-  - [ ] [CBC bitflipping attacks](http://cryptopals.com/sets/2/challenges/16/)
+  - [X] [CBC bitflipping attacks](http://cryptopals.com/sets/2/challenges/16/)
 
 ## Set 3
 

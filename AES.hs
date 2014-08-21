@@ -8,6 +8,7 @@ module AES ( aesTests
            , checkAESProps
            , padPkcs7
            , checkPadPkcs7
+           , zeroIV
            ) where
 
 import Control.Monad.RWS hiding (state)
@@ -585,3 +586,6 @@ checkPadPkcs7 b =
             padLen = fromIntegral lastByte
             (msg, pad) = B.splitAt (B.length b - padLen) b
             isValid = pad == B.replicate padLen lastByte
+
+zeroIV :: B.ByteString
+zeroIV = B.replicate 16 0

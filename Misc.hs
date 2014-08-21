@@ -5,9 +5,11 @@ module Misc ( chunksOfSize
             , thr3
             , uncurry3
             , randomBytes
+            , bsMapIdx
             ) where
 
 import Control.Monad
+import Data.Word
 import System.Random
 
 import qualified Data.ByteString as B
@@ -39,3 +41,7 @@ randomBytes :: Int -> IO B.ByteString
 randomBytes n = do
     bytes <- forM [1..n] $ \ _ -> randomIO
     return $ B.pack bytes
+
+bsMapIdx :: (Int -> Word8 -> Word8) -> B.ByteString -> B.ByteString
+bsMapIdx f bs =
+    snd $ B.mapAccumL (\ i w -> (i+1, f i w)) 0 bs

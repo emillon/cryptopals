@@ -1,5 +1,6 @@
 import Control.Applicative
 import Control.Monad
+import Data.Bits
 import Data.List
 import Data.List.Split hiding (chunk)
 import Data.Maybe
@@ -163,8 +164,7 @@ chall10 :: Test
 chall10 = "Challenge 10" ~: do
     cipher <- readFileBase64 "challenge-data/10.txt"
     let key = string2bs "YELLOW SUBMARINE"
-        iv = B.replicate 16 0
-        plain = aes128decryptCBC key iv cipher
+        plain = aes128decryptCBC key zeroIV cipher
     assert $ string2bs "Let the witch doctor" `B.isInfixOf` plain
 
 data AESMode = ECB | CBC deriving (Eq, Show)
@@ -283,6 +283,40 @@ chall15 =
         tc input spec =
             fmap unHex spec ~=? checkPadPkcs7 (unHex input)
 
+makeCookie :: B.ByteString -> B.ByteString
+makeCookie input =
+    aes128cryptCBC chall16key zeroIV $ padPkcs7 $ B.concat [before, quote input, after]
+        where
+            before = string2bs "comment1=cooking%20MCs;userdata="
+            after = string2bs ";comment2=%20like%20a%20pound%20of%20bacon"
+            quote = B.concatMap quoteChar
+            quoteChar 59 = string2bs "%3B" -- ';'
+            quoteChar 61 = string2bs "%3D" -- '='
+            quoteChar c = B.singleton c
+
+chall16key :: B.ByteString
+chall16key = unHex "c8a8 07d3 19c3 00a7 ac4e fcd9 e8da c71a"
+
+validateCookie :: B.ByteString -> Bool
+validateCookie cookie =
+    case checkPadPkcs7 $ aes128decryptCBC chall16key zeroIV cookie of
+        Nothing -> False
+        Just msg -> string2bs ";admin=true;" `B.isInfixOf` msg
+
+bitFlip :: Int -> Int -> B.ByteString -> B.ByteString
+bitFlip n b bs =
+    bsMapIdx f bs
+        where
+            f i w | i /= n  = w
+            f _ w =  w `complementBit` b
+
+chall16 :: Test
+chall16 =
+    "Challenge 16" ~: assert $ validateCookie c'
+        where
+            c = makeCookie $ string2bs "AAAAAAAAAAAAAAAA:admin<true"
+            c' = bitFlip 32 0 $ bitFlip 38 0 c
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -303,4 +337,5 @@ main = do
             , chall12
             , chall13
             , chall15
+            , chall16
             ]
