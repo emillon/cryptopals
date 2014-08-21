@@ -322,34 +322,29 @@ chall16 =
 chall17key :: B.ByteString
 chall17key = unHex "02f9 142f 6d14 c366 fd2c 8735 1fff 89a7"
 
-c17makeCookie :: IO (B.ByteString, B.ByteString)
-c17makeCookie = do
-    iv <- randomBytes 16
-    plain <- randomWithin plains
-    let cipher = aes128cryptCBC chall17key iv $ padPkcs7 plain
-    return (cipher, iv)
-        where
-            plains = map decodeBase64
-                [ "MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc="
-                , "MDAwMDAxV2l0aCB0aGUgYmFzcyBraWNrZWQgaW4gYW5kIHRoZSBWZWdhJ3MgYXJlIHB1bXBpbic="
-                , "MDAwMDAyUXVpY2sgdG8gdGhlIHBvaW50LCB0byB0aGUgcG9pbnQsIG5vIGZha2luZw=="
-                , "MDAwMDAzQ29va2luZyBNQydzIGxpa2UgYSBwb3VuZCBvZiBiYWNvbg=="
-                , "MDAwMDA0QnVybmluZyAnZW0sIGlmIHlvdSBhaW4ndCBxdWljayBhbmQgbmltYmxl"
-                , "MDAwMDA1SSBnbyBjcmF6eSB3aGVuIEkgaGVhciBhIGN5bWJhbA=="
-                , "MDAwMDA2QW5kIGEgaGlnaCBoYXQgd2l0aCBhIHNvdXBlZCB1cCB0ZW1wbw=="
-                , "MDAwMDA3SSdtIG9uIGEgcm9sbCwgaXQncyB0aW1lIHRvIGdvIHNvbG8="
-                , "MDAwMDA4b2xsaW4nIGluIG15IGZpdmUgcG9pbnQgb2g="
-                , "MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93"
-                ]
-
 c17checkPad :: B.ByteString -> B.ByteString -> Bool
 c17checkPad cipher iv =
     isJust $ checkPadPkcs7 $ aes128decryptCBC chall17key iv cipher
 
-cc :: IO ()
-cc = do
-    (cipher, iv) <- c17makeCookie
-    print $ B.pack $ reverse $ getBlock c17checkPad cipher iv
+chall17 :: Test
+chall17 = "Challenge 17" ~: map tc
+    [ "MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc="
+    , "MDAwMDAxV2l0aCB0aGUgYmFzcyBraWNrZWQgaW4gYW5kIHRoZSBWZWdhJ3MgYXJlIHB1bXBpbic="
+    , "MDAwMDAyUXVpY2sgdG8gdGhlIHBvaW50LCB0byB0aGUgcG9pbnQsIG5vIGZha2luZw=="
+    , "MDAwMDAzQ29va2luZyBNQydzIGxpa2UgYSBwb3VuZCBvZiBiYWNvbg=="
+    , "MDAwMDA0QnVybmluZyAnZW0sIGlmIHlvdSBhaW4ndCBxdWljayBhbmQgbmltYmxl"
+    , "MDAwMDA1SSBnbyBjcmF6eSB3aGVuIEkgaGVhciBhIGN5bWJhbA=="
+    , "MDAwMDA2QW5kIGEgaGlnaCBoYXQgd2l0aCBhIHNvdXBlZCB1cCB0ZW1wbw=="
+    , "MDAwMDA3SSdtIG9uIGEgcm9sbCwgaXQncyB0aW1lIHRvIGdvIHNvbG8="
+    , "MDAwMDA4b2xsaW4nIGluIG15IGZpdmUgcG9pbnQgb2g="
+    , "MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93"
+    ]
+        where
+            tc plainb =
+                let plain = decodeBase64 plainb in
+                let iv = zeroIV in
+                let cipher = aes128cryptCBC chall17key iv $ padPkcs7 plain in
+                Just plain ~=? checkPadPkcs7 (padOracleAttack c17checkPad cipher iv)
 
 main :: IO ()
 main = do
@@ -372,4 +367,5 @@ main = do
             , chall13
             , chall15
             , chall16
+            , chall17
             ]
