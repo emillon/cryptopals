@@ -607,7 +607,7 @@ checkPadPkcs7 b =
             lastByte = B.last b
             padLen = fromIntegral lastByte
             (msg, pad) = B.splitAt (B.length b - padLen) b
-            isValid = pad == B.replicate padLen lastByte
+            isValid = lastByte > 0 && lastByte <= 0x10 && pad == B.replicate padLen lastByte
 
 -- |An initialization vector with only zeroes.
 zeroIV :: B.ByteString

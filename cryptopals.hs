@@ -278,6 +278,7 @@ chall15 =
         ++ "10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10"
           , Just "4c 4f 4c 20 4c 4f 4c 20 4c 4f 4c 20 4c 4f 4c 20"
           )
+        , ("4c 4f 4c 20 4c 4f 4c 20 4c 4f 4c 20 4c 4f 4c 00", Nothing)
         ]
     where
         tc input spec =
