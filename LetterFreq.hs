@@ -1,3 +1,5 @@
+-- | Analyze the frequency of letters in a bytestring.
+
 module LetterFreq ( englishness
                   , printability
                   ) where
@@ -8,6 +10,8 @@ import Data.Word
 import qualified Data.ByteString as B
 import qualified Data.Map as M
 
+-- | Score how the likelihood that a bytestring is english test.
+-- The value does not matter, but higher is more likely.
 englishness :: B.ByteString -> Float
 englishness s =
     similarity (freq s) englishFreq
@@ -136,6 +140,8 @@ dot :: Freq -> Freq -> Float
 dot a b =
     sum $ map (\ l -> a l * b l) letters
 
+-- | Return the proportion of printable characters (interpreted as ASCII)
+-- in a bytestring.
 printability :: B.ByteString -> Float
 printability b =
     fromIntegral printable / fromIntegral total
