@@ -27,7 +27,7 @@ http://cryptopals.com/
 ## Set 3
 
   - [X] [The CBC padding oracle](http://cryptopals.com/sets/3/challenges/17/)
-  - [ ] [Implement CTR, the stream cipher mode](http://cryptopals.com/sets/3/challenges/18/)
+  - [X] [Implement CTR, the stream cipher mode](http://cryptopals.com/sets/3/challenges/18/)
   - [ ] [Break fixed-nonce CTR mode using substitions](http://cryptopals.com/sets/3/challenges/19/)
   - [ ] [Break fixed-nonce CTR statistically](http://cryptopals.com/sets/3/challenges/20/)
   - [ ] [Implement the MT19937 Mersenne Twister RNG](http://cryptopals.com/sets/3/challenges/21/)

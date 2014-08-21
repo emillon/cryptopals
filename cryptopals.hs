@@ -346,6 +346,16 @@ chall17 = "Challenge 17" ~: map tc
                 let cipher = aes128cryptCBC chall17key iv $ padPkcs7 plain in
                 Just plain ~=? checkPadPkcs7 (padOracleAttack c17checkPad cipher iv)
 
+chall18 :: Test
+chall18 =
+    "Challenge 18" ~: spec ~=? bs2string plain
+        where
+            cipher = decodeBase64 "L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ=="
+            key = string2bs "YELLOW SUBMARINE"
+            nonce = B.replicate 8 0
+            plain = aes128decryptCTR key nonce cipher
+            spec = "Yo, VIP Let's kick it Ice, Ice, baby Ice, Ice, baby "
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -368,4 +378,5 @@ main = do
             , chall15
             , chall16
             , chall17
+            , chall18
             ]

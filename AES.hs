@@ -11,6 +11,8 @@ module AES ( aesTests
            , padPkcs7
            , checkPadPkcs7
            , zeroIV
+           , aes128decryptCTR
+           , aes128cryptCTR
            ) where
 
 import Control.Monad.RWS hiding (state)
@@ -612,3 +614,36 @@ checkPadPkcs7 b =
 -- |An initialization vector with only zeroes.
 zeroIV :: B.ByteString
 zeroIV = B.replicate 16 0
+
+-- | Decrypt a ciphertext using CTR mode.
+aes128decryptCTR :: B.ByteString -- ^ Key
+                 -> B.ByteString -- ^ Nonce
+                 -> B.ByteString -- ^ Ciphertext
+                 -> B.ByteString
+aes128decryptCTR key nonce cipher =
+    B.concat $ map block [0..nblocks-1]
+        where
+            nblocks = 1 + (B.length cipher `div` 16)
+            block i = (nthChunk 16 i cipher) `xorBuffer` keyBlock i
+            keyBlock i = aes128cryptBlock key $ B.append nonce $ w64LEtoBS $ fromIntegral i
+
+w64LEtoBS :: Word64 -> B.ByteString
+w64LEtoBS n =
+    B.pack [b0, b1, b2, b3, b4, b5, b6, b7]
+        where
+            b0 = fromIntegral   (n .&. 0x00000000000000ff)
+            b1 = fromIntegral $ (n .&. 0x000000000000ff00) `shiftR` (8*1)
+            b2 = fromIntegral $ (n .&. 0x0000000000ff0000) `shiftR` (8*2)
+            b3 = fromIntegral $ (n .&. 0x00000000ff000000) `shiftR` (8*3)
+            b4 = fromIntegral $ (n .&. 0x000000ff00000000) `shiftR` (8*4)
+            b5 = fromIntegral $ (n .&. 0x0000ff0000000000) `shiftR` (8*5)
+            b6 = fromIntegral $ (n .&. 0x00ff000000000000) `shiftR` (8*6)
+            b7 = fromIntegral $ (n .&. 0xff00000000000000) `shiftR` (8*7)
+
+-- | Crypt a ciphertext using CTR mode.
+-- Because of how CTR works, that is actually the same as 'aes128decryptCTR'.
+aes128cryptCTR :: B.ByteString -- ^ Key
+               -> B.ByteString -- ^ Nonce
+               -> B.ByteString -- ^ Plaintext
+               -> B.ByteString
+aes128cryptCTR = aes128decryptCTR
