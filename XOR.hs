@@ -17,14 +17,14 @@ import Misc
 
 xorBuffer :: B.ByteString -> B.ByteString -> B.ByteString
 xorBuffer a b =
-    snd $ B.mapAccumL (\ i w -> (i+1, w `xor` (B.index b i))) 0 a
+    bsMapIdx (\ i w -> w `xor` (B.index b i)) a
 
 xorBufferRepeat :: B.ByteString -> B.ByteString -> B.ByteString
 xorBufferRepeat input key =
-    snd $ B.mapAccumL go 0 input
+    bsMapIdx go input
         where
             go i w =
-                (i + 1, xor w (B.index key (i `mod` n)))
+                w `xor` (B.index key (i `mod` n))
             n = B.length key
 
 findXorKey :: B.ByteString -> (Word8, Float, B.ByteString)
