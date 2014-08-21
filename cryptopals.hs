@@ -18,6 +18,7 @@ import ByteAtATime
 import KeyValue
 import LetterFreq
 import Misc
+import PaddingOracle
 import XOR
 
 chall01 :: Test
@@ -341,15 +342,14 @@ c17makeCookie = do
                 , "MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93"
                 ]
 
-c17checkPad :: (B.ByteString, B.ByteString) -> Bool
-c17checkPad (cipher, iv) =
-    let plain = aes128decryptCBC chall17key iv cipher in
-    isJust $ checkPadPkcs7 plain
+c17checkPad :: B.ByteString -> B.ByteString -> Bool
+c17checkPad cipher iv =
+    isJust $ checkPadPkcs7 $ aes128decryptCBC chall17key iv cipher
 
 cc :: IO ()
 cc = do
     (cipher, iv) <- c17makeCookie
-    print $ c17checkPad (cipher, iv)
+    print $ B.pack $ reverse $ getBlock c17checkPad cipher iv
 
 main :: IO ()
 main = do
