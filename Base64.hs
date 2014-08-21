@@ -1,3 +1,4 @@
+-- | Functions to manipulate and convert bytestrings to/from base64 or hex.
 module Base64 ( decodeHex
               , encodeHex
               , toHex
@@ -17,12 +18,16 @@ import Data.Tuple
 
 import qualified Data.ByteString as B
 
+-- | Convert a hex representation such as @\"abcdef\"@ to a bytestring such as
+-- @B.pack [0xab, 0xcd, 0xef]@.
 decodeHex :: String -> B.ByteString
 decodeHex = B.pack . map (uncurry decodeHexPair) . twoByTwo
 
+-- | A generalization of 'decodeHex' that allows spaces between hex digits.
 unHex :: String -> B.ByteString
 unHex = decodeHex . concat . words
 
+-- | Convert a bytestring to a hex string (converse of 'decodeHex').
 encodeHex :: B.ByteString -> String
 encodeHex b = B.foldr go "" b
     where
@@ -34,6 +39,10 @@ twoByTwo [] = []
 twoByTwo (a:b:l) = (a, b):twoByTwo l
 twoByTwo [_] = error "twoByTwo"
 
+-- | Turn an ASCII string to a hex representation.
+--
+-- >>> toHex "ABC"
+-- "414243"
 toHex :: String -> String
 toHex =
     concatMap encodeHexPairChar
@@ -54,9 +63,11 @@ encodeHexPair w = [h, l] where
     l = intToDigit $ fromIntegral r
     (q, r) = w `quotRem` 0x10
 
+-- | Convert a bytestring to a string. Somehow unsafe.
 bs2string :: B.ByteString -> String
 bs2string = map (toEnum . fromEnum) . B.unpack
 
+-- | Convert a string to a bytestring, similar to the 'IsString' instance. Somehow unsafe.
 string2bs :: String -> B.ByteString
 string2bs = B.pack . map (toEnum . fromEnum)
 
@@ -64,6 +75,7 @@ base64Table :: Array Word8 Char
 base64Table =
     listArray (0, 63) $ ['A'..'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ ['+' , '/']
 
+-- | Convert Hex to Base64.
 hexToB64 :: B.ByteString -> B.ByteString
 hexToB64 =
     B.concat . map threeToFour . threeByThree . B.unpack
@@ -118,6 +130,7 @@ findb64 c =
         Nothing -> error $ "findb64 : " ++ show c
         Just x -> x
 
+-- | Given a base64-encoded string, return a bytestring with the same contents.
 decodeBase64 :: String -> B.ByteString
 decodeBase64 =
     B.concat . map (B.pack . fourToThree) . fourByFour
@@ -148,6 +161,8 @@ fourByFour [] = []
 fourByFour (a:b:c:d:r) = (a, b, c, d):fourByFour r
 fourByFour _ = error "fourByFour"
 
+-- | Wrapper around 'readFile' and 'decodeBase64' to read
+-- a file encoded in Base64.
 readFileBase64 :: FilePath -> IO B.ByteString
 readFileBase64 path = do
     c <- concat <$> lines <$> readFile path
