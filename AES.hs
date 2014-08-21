@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+-- |An implementation of the Advanced Encryption Standard on strict ByteStrings.
+
 module AES ( aesTests
            , aes128decryptECB
            , aes128decryptCBC
@@ -25,6 +27,7 @@ import Base64
 import Misc
 import XOR
 
+-- |HUnit tests for this module.
 aesTests :: Test
 aesTests = TestList [scheduleTests, mixTests]
 
@@ -359,7 +362,10 @@ scheduleCore i k =
             kd' = sbox ! ka
             (ka, kb, kc, kd) = w32toBytes k
 
-aes128decryptECB :: B.ByteString -> B.ByteString -> B.ByteString
+-- |Decrypt a ciphertext using ECB mode.
+aes128decryptECB :: B.ByteString -- ^ Key
+                 -> B.ByteString -- ^ Ciphertext
+                 -> B.ByteString
 aes128decryptECB key cipher =
     ecbHelper aes128decryptBlock key cipher
 
@@ -367,11 +373,18 @@ ecbHelper :: (B.ByteString -> B.ByteString -> B.ByteString) -> B.ByteString -> B
 ecbHelper fblock key input =
     B.concat $ map (fblock key) $ chunksOfSize 16 input
 
-aes128cryptECB :: B.ByteString -> B.ByteString -> B.ByteString
+-- |Crypt a plaintext using ECB mode.
+aes128cryptECB :: B.ByteString -- ^ Key
+               -> B.ByteString -- ^ Plaintext
+               -> B.ByteString
 aes128cryptECB key plain =
     ecbHelper aes128cryptBlock key plain
 
-aes128cryptCBC :: B.ByteString -> B.ByteString -> B.ByteString -> B.ByteString
+-- |Crypt a plaintext using CBC mode.
+aes128cryptCBC :: B.ByteString -- ^ Key
+               -> B.ByteString -- ^ IV
+               -> B.ByteString -- ^ Plaintext
+               -> B.ByteString
 aes128cryptCBC key iv plain =
     thr3 $ runRWS m key iv
         where
@@ -385,7 +398,11 @@ aes128cryptCBCblock block = do
     tell out
     put out
 
-aes128decryptCBC :: B.ByteString -> B.ByteString -> B.ByteString -> B.ByteString
+-- |Decrypt a ciphertext using CBC mode.
+aes128decryptCBC :: B.ByteString -- ^ Key
+                 -> B.ByteString -- ^ IV
+                 -> B.ByteString -- ^ Ciphertext
+                 -> B.ByteString
 aes128decryptCBC key iv cipher =
     thr3 $ runRWS m key iv
         where
@@ -567,15 +584,20 @@ prop_aes128blockInv :: GeneratedBS -> GeneratedBS -> Bool
 prop_aes128blockInv (GeneratedBS k) (GeneratedBS b) =
     aes128decryptBlock k (aes128cryptBlock k b) == b
 
+-- |QuickCheck tests for this module.
 checkAESProps :: IO Bool
 checkAESProps = $quickCheckAll
 
+-- |Add a PKCS#7 padding to a bytestring.
 padPkcs7 :: B.ByteString -> B.ByteString
 padPkcs7 b =
     B.append b $ B.replicate n (fromIntegral n)
         where
             n = 16 - (B.length b `mod` 16)
 
+-- |Check that a bytestring is correctly padded in the PKCS#7 sense.
+--
+-- If the padding is valid, return the message only (with the padding removed).
 checkPadPkcs7 :: B.ByteString -> Maybe B.ByteString
 checkPadPkcs7 b =
     if isValid
@@ -587,5 +609,6 @@ checkPadPkcs7 b =
             (msg, pad) = B.splitAt (B.length b - padLen) b
             isValid = pad == B.replicate padLen lastByte
 
+-- |An initialization vector with only zeroes.
 zeroIV :: B.ByteString
 zeroIV = B.replicate 16 0
