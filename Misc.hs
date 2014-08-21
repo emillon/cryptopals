@@ -7,6 +7,7 @@ module Misc ( chunksOfSize
             , uncurry3
             , randomBytes
             , bsMapIdx
+            , randomWithin
             ) where
 
 import Control.Monad
@@ -58,3 +59,10 @@ randomBytes n = do
 bsMapIdx :: (Int -> Word8 -> Word8) -> B.ByteString -> B.ByteString
 bsMapIdx f bs =
     snd $ B.mapAccumL (\ i w -> (i+1, f i w)) 0 bs
+
+-- |Pick an element at random within a list.
+randomWithin :: [a] -> IO a
+randomWithin l = do
+    let n = length l
+    i <- randomRIO (0, n-1)
+    return $ l !! i
