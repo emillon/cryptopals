@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
--- |An implementation of the Advanced Encryption Standard on strict ByteStrings.
+-- | An implementation of the Advanced Encryption Standard on strict ByteStrings.
 
 module AES ( aesTests
            , aes128decryptECB
@@ -30,7 +30,7 @@ import Base64
 import Misc
 import XOR
 
--- |HUnit tests for this module.
+-- | HUnit tests for this module.
 aesTests :: Test
 aesTests = TestList [scheduleTests, mixTests]
 
@@ -365,7 +365,7 @@ scheduleCore i k =
             kd' = sbox ! ka
             (ka, kb, kc, kd) = w32toBytes k
 
--- |Decrypt a ciphertext using ECB mode.
+-- | Decrypt a ciphertext using ECB mode.
 aes128decryptECB :: B.ByteString -- ^ Key
                  -> B.ByteString -- ^ Ciphertext
                  -> B.ByteString
@@ -376,14 +376,14 @@ ecbHelper :: (B.ByteString -> B.ByteString -> B.ByteString) -> B.ByteString -> B
 ecbHelper fblock key input =
     B.concat $ map (fblock key) $ chunksOfSize 16 input
 
--- |Crypt a plaintext using ECB mode.
+-- | Crypt a plaintext using ECB mode.
 aes128cryptECB :: B.ByteString -- ^ Key
                -> B.ByteString -- ^ Plaintext
                -> B.ByteString
 aes128cryptECB key plain =
     ecbHelper aes128cryptBlock key plain
 
--- |Crypt a plaintext using CBC mode.
+-- | Crypt a plaintext using CBC mode.
 aes128cryptCBC :: B.ByteString -- ^ Key
                -> B.ByteString -- ^ IV
                -> B.ByteString -- ^ Plaintext
@@ -401,7 +401,7 @@ aes128cryptCBCblock block = do
     tell out
     put out
 
--- |Decrypt a ciphertext using CBC mode.
+-- | Decrypt a ciphertext using CBC mode.
 aes128decryptCBC :: B.ByteString -- ^ Key
                  -> B.ByteString -- ^ IV
                  -> B.ByteString -- ^ Ciphertext
@@ -587,18 +587,18 @@ prop_aes128blockInv :: GeneratedBS -> GeneratedBS -> Bool
 prop_aes128blockInv (GeneratedBS k) (GeneratedBS b) =
     aes128decryptBlock k (aes128cryptBlock k b) == b
 
--- |QuickCheck tests for this module.
+-- | QuickCheck tests for this module.
 checkAESProps :: IO Bool
 checkAESProps = $quickCheckAll
 
--- |Add a PKCS#7 padding to a bytestring.
+-- | Add a PKCS#7 padding to a bytestring.
 padPkcs7 :: B.ByteString -> B.ByteString
 padPkcs7 b =
     B.append b $ B.replicate n (fromIntegral n)
         where
             n = 16 - (B.length b `mod` 16)
 
--- |Check that a bytestring is correctly padded in the PKCS#7 sense.
+-- | Check that a bytestring is correctly padded in the PKCS#7 sense.
 --
 -- If the padding is valid, return the message only (with the padding removed).
 checkPadPkcs7 :: B.ByteString -> Maybe B.ByteString
