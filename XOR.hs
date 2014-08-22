@@ -5,6 +5,7 @@ module XOR ( xorBuffer
            , findXorKey
            , hammingDistance
            , breakRepeatXorAuto
+           , breakRepeatXor
            ) where
 
 import Data.Bits
@@ -53,14 +54,16 @@ findXorKey b =
             f k = let plain = xorBuffer b (makeKey k) in
                 (k, englishness plain, plain)
 
-breakRepeatXor :: B.ByteString -> Int -> B.ByteString
+-- | Like 'breakRepeatXorAuto' but with a given key size.
+breakRepeatXor :: B.ByteString -> Int -> (B.ByteString, Float, B.ByteString)
 breakRepeatXor b ks =
-    key
+    (key, englishness plain, plain)
         where
             cs = chunksOfSize ks b
             tcs = transposeChunks cs
             keyWords = map (\ tc -> fst3 (findXorKey tc)) tcs
             key = B.pack keyWords
+            plain = xorBufferRepeat b key
 
 transposeChunks :: [B.ByteString] -> [B.ByteString]
 transposeChunks cs =
@@ -115,8 +118,4 @@ index0 b i =
 --
 breakRepeatXorAuto :: B.ByteString -> (B.ByteString, Float, B.ByteString)
 breakRepeatXorAuto b =
-    maximumBy (comparing snd3) $ map f $ map (breakRepeatXor b) $ keysizeCandidates b
-        where
-            f k =
-                let plain = xorBufferRepeat b k in
-                (k, englishness plain, plain)
+    maximumBy (comparing snd3) $ map (breakRepeatXor b) $ keysizeCandidates b

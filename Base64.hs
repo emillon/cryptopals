@@ -8,6 +8,7 @@ module Base64 ( decodeHex
               , decodeBase64
               , hexToB64
               , readFileBase64
+              , readFileLinesBase64
               ) where
 
 import Control.Applicative
@@ -164,6 +165,10 @@ fourByFour _ = error "fourByFour"
 -- | Wrapper around 'readFile' and 'decodeBase64' to read
 -- a file encoded in Base64.
 readFileBase64 :: FilePath -> IO B.ByteString
-readFileBase64 path = do
-    c <- concat <$> lines <$> readFile path
-    return $ decodeBase64 c
+readFileBase64 path =
+    decodeBase64 <$> concat <$> lines <$> readFile path
+
+-- | Variant of 'readFileBase64' that decodes one bytestring per line of input.
+readFileLinesBase64 :: FilePath -> IO [B.ByteString]
+readFileLinesBase64 path = do
+    map decodeBase64 <$> lines <$> readFile path

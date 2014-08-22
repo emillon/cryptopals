@@ -415,6 +415,22 @@ chall19 =
                     , "QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4="
                     ]
 
+chall20 :: Test
+chall20 = "Challenge 20" ~: do
+    plains <- readFileLinesBase64 "challenge-data/20.txt"
+    let key = unHex "e135 ffa9 6610 66d7 62ec 854a 4a09 b3d4"
+        nonce = zeroNonce
+        ciphers = map (aes128cryptCTR key nonce) plains
+        n = B.length $ minimumBy (comparing B.length) ciphers
+        cutCiphers = map (B.take n) ciphers
+        bigCipher = B.concat cutCiphers
+        (_, _, result) = breakRepeatXor bigCipher n
+        expectedResult = B.concat $ map (B.take n) plains
+        dist = hammingDistance expectedResult result
+        diffScore :: Float
+        diffScore = fromIntegral dist / fromIntegral (B.length result)
+    assert $ diffScore < 0.06
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -439,4 +455,5 @@ main = do
             , chall17
             , chall18
             , chall19
+            , chall20
             ]
