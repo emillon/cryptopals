@@ -1,3 +1,5 @@
+-- | Functions to XOR buffers, break repeating XOR ciphers, etc.
+
 module XOR ( xorBuffer
            , xorBufferRepeat
            , findXorKey
@@ -15,11 +17,15 @@ import qualified Data.ByteString as B
 import LetterFreq
 import Misc
 
+-- | XOR two buffers. They should have the same size.
 xorBuffer :: B.ByteString -> B.ByteString -> B.ByteString
 xorBuffer a b =
     bsMapIdx (\ i w -> w `xor` (B.index b i)) a
 
-xorBufferRepeat :: B.ByteString -> B.ByteString -> B.ByteString
+-- | XOR two buffers, repeating the second argument (key).
+xorBufferRepeat :: B.ByteString -- ^ Input
+                -> B.ByteString -- ^ Key
+                -> B.ByteString
 xorBufferRepeat input key =
     bsMapIdx go input
         where
@@ -27,6 +33,17 @@ xorBufferRepeat input key =
                 w `xor` (B.index key (i `mod` n))
             n = B.length key
 
+-- | Break single-byte XOR statistically
+-- (assuming plaintext is english, cf "LetterFreq").
+--
+-- Returns a triple containing:
+--
+--    * the key byte
+--
+--    * its score
+--
+--    * the plaintext
+--
 findXorKey :: B.ByteString -> (Word8, Float, B.ByteString)
 findXorKey b =
     maximumBy (comparing snd3) $ map f [0..]
@@ -51,6 +68,8 @@ transposeChunks cs =
         where
             m = B.length (head cs)
 
+-- | Compute the Hamming Distance between two bytestrings,
+-- ie the number of bits that differ between them.
 hammingDistance :: B.ByteString -> B.ByteString -> Int
 hammingDistance a b = sum $ B.zipWith hammingDistanceWord8 a b
 
@@ -84,6 +103,16 @@ index0 b i =
         then B.index b i
         else 0
 
+-- | Break repeating key XOR using the Vigenere technique.
+--
+-- As for 'findXorKey', it returns a triple containing:
+--
+--    * the key
+--
+--    * its score
+--
+--    * the plaintext
+--
 breakRepeatXorAuto :: B.ByteString -> (B.ByteString, Float, B.ByteString)
 breakRepeatXorAuto b =
     maximumBy (comparing snd3) $ map f $ map (breakRepeatXor b) $ keysizeCandidates b
