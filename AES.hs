@@ -11,6 +11,7 @@ module AES ( aesTests
            , padPkcs7
            , checkPadPkcs7
            , zeroIV
+           , zeroNonce
            , aes128decryptCTR
            , aes128cryptCTR
            ) where
@@ -611,9 +612,13 @@ checkPadPkcs7 b =
             (msg, pad) = B.splitAt (B.length b - padLen) b
             isValid = lastByte > 0 && lastByte <= 0x10 && pad == B.replicate padLen lastByte
 
--- |An initialization vector with only zeroes.
+-- | An initialization vector with only zeroes.
 zeroIV :: B.ByteString
 zeroIV = B.replicate 16 0
+
+-- | A nonce with only zeroes.
+zeroNonce :: B.ByteString
+zeroNonce = B.replicate 8 0
 
 -- | Decrypt a ciphertext using CTR mode.
 aes128decryptCTR :: B.ByteString -- ^ Key

@@ -8,9 +8,11 @@ module Misc ( chunksOfSize
             , randomBytes
             , bsMapIdx
             , randomWithin
+            , bsUcFirst
             ) where
 
 import Control.Monad
+import Data.Char
 import Data.Word
 import System.Random
 
@@ -66,3 +68,12 @@ randomWithin l = do
     let n = length l
     i <- randomRIO (0, n-1)
     return $ l !! i
+
+-- | Uppercase the first (ASCII) letter in a Bytestring.
+bsUcFirst :: B.ByteString -> B.ByteString
+bsUcFirst =
+    bsMapIdx go
+        where
+            go 0 w = upperWord w
+            go _ w = w
+            upperWord = fromIntegral . ord . toUpper . chr . fromIntegral
