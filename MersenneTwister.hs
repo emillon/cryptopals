@@ -9,7 +9,6 @@ module MersenneTwister ( createMT
                        , recoverSeed
                        ) where
 
-import Control.Monad.RWS
 import Control.Monad.State
 import Data.Array
 import Data.Bits
@@ -248,11 +247,9 @@ mtTests = "Mersenne Twister" ~: TestList
 
 first200 :: [Word32]
 first200 =
-    snd $ evalRWS m () $ createMT 1
+    evalState m $ createMT 1
         where
-            m = forM_ [1::Int ..200] $ \ _ -> do
-                n <- nextMT
-                tell [n]
+            m = mapM (\ _ -> nextMT) [1::Int ..200]
 
 getSeed :: Word32 -> [Word32]
 getSeed =
