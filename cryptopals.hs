@@ -17,6 +17,7 @@ import Base64
 import ByteAtATime
 import KeyValue
 import LetterFreq
+import MersenneTwister
 import Misc
 import PaddingOracle
 import XOR
@@ -456,4 +457,5 @@ main = do
             , chall18
             , chall19
             , chall20
+            , mtTests
             ]
