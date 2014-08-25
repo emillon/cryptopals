@@ -31,7 +31,7 @@ http://cryptopals.com/
   - [X] [Break fixed-nonce CTR mode using substitions](http://cryptopals.com/sets/3/challenges/19/)
   - [X] [Break fixed-nonce CTR statistically](http://cryptopals.com/sets/3/challenges/20/)
   - [X] [Implement the MT19937 Mersenne Twister RNG](http://cryptopals.com/sets/3/challenges/21/)
-  - [ ] [Crack an MT19937 seed](http://cryptopals.com/sets/3/challenges/22/)
+  - [X] [Crack an MT19937 seed](http://cryptopals.com/sets/3/challenges/22/)
   - [ ] [Clone an MT19937 RNG from its output](http://cryptopals.com/sets/3/challenges/23/)
   - [ ] [Create the MT19937 stream cipher and break it](http://cryptopals.com/sets/3/challenges/24/)
 

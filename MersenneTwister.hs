@@ -6,11 +6,14 @@
 module MersenneTwister ( createMT
                        , nextMT
                        , mtTests
+                       , recoverSeed
                        ) where
 
 import Control.Monad.RWS
+import Control.Monad.State
 import Data.Array
 import Data.Bits
+import Data.List
 import Data.Word
 import Test.HUnit
 
@@ -254,3 +257,14 @@ first200 =
 getSeed :: Word32 -> [Word32]
 getSeed =
     elems . mtArray . createMT
+
+-- | Find the seed, given the first output of the random number generator.
+recoverSeed :: Word32       -- ^ Lower bound of search space.
+            -> Word32       -- ^ Higher bound of search space.
+            -> Word32       -- ^ Target value.
+            -> Maybe Word32
+recoverSeed low hi target =
+    find ok [low..hi]
+        where
+            ok n =
+                target == evalState nextMT (createMT n)

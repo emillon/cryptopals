@@ -432,6 +432,10 @@ chall20 = "Challenge 20" ~: do
         diffScore = fromIntegral dist / fromIntegral (B.length result)
     assert $ diffScore < 0.06
 
+chall22 :: Test
+chall22 =
+    "Challenge 22" ~: Just 1408957948 ~=? recoverSeed (1408958118-1000) 1408958118 37359908
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -458,4 +462,5 @@ main = do
             , chall19
             , chall20
             , mtTests
+            , chall22
             ]
