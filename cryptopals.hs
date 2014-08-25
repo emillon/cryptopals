@@ -1,10 +1,12 @@
 import Control.Applicative
 import Control.Monad
+import Control.Monad.State
 import Data.Bits
 import Data.List
 import Data.List.Split hiding (chunk)
 import Data.Maybe
 import Data.Ord
+import Data.Word
 import System.Environment
 import System.Random
 import Test.HUnit
@@ -440,7 +442,9 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-        ["-c"] -> void $ checkAESProps
+        ["-c"] -> do
+            void $ checkAESProps
+            void $ checkMTProps
         _ -> void $ runTestTT $ TestList
             [ chall01
             , chall02

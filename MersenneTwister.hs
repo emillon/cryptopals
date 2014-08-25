@@ -2,11 +2,14 @@
 -- for pseudo-random number generation (aka "Mersenne Twister").
 
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module MersenneTwister ( createMT
                        , nextMT
                        , mtTests
                        , recoverSeed
+                       , checkMTProps
+                       , untemper
                        ) where
 
 import Control.Monad.State
@@ -15,6 +18,7 @@ import Data.Bits
 import Data.List
 import Data.Word
 import Test.HUnit
+import Test.QuickCheck.All
 
 type Seed = Word32
 
@@ -43,12 +47,51 @@ nextMT = do
     when (i == 0) generateNumbers
     a <- gets mtArray
     modify incrIndex
-    return $ f4 $ f3 $ f2 $ f1 $ a ! i
-        where
-             f1 y = y `xor` (y `shiftR` 11)
-             f2 y = y `xor` ((y `shiftL` 7) .&. 0x9d2c5680)
-             f3 y = y `xor` ((y `shiftL` 15) .&. 0xefc60000)
-             f4 y = y `xor` (y `shiftR` 18)
+    return $ temper $ a ! i
+
+-- | Mersenne Twister's tempering function.
+temper :: Word32 -> Word32
+temper =
+    temper_f4 . temper_f3 . temper_f2 . temper_f1
+
+temper_f1, temper_f2, temper_f3, temper_f4 :: Word32 -> Word32
+temper_f1 y = y `xor` (y `shiftR` 11)
+temper_f2 y = y `xor` ((y `shiftL` 7) .&. temperingMask2)
+temper_f3 y = y `xor` ((y `shiftL` 15) .&. temperingMask3)
+temper_f4 y = y `xor` (y `shiftR` 18)
+
+temperingMask2, temperingMask3 :: Word32
+temperingMask2 = 0x9d2c5680
+temperingMask3 = 0xefc60000
+
+-- | Inverse of 'temper'.
+untemper :: Word32 -> Word32
+untemper =
+    untemper_f1 . untemper_f2 . untemper_f3 . untemper_f4
+
+untemper_f1, untemper_f2, untemper_f3, untemper_f4 :: Word32 -> Word32
+untemper_f1 y = y `xor` ((y `xor` (y `shiftR` 11)) `shiftR` 11)
+untemper_f2 y = y `xor` (i .&. temperingMask2)
+    where
+        i = f $ f $ f $ f $ y `shiftL` 7
+        f x = (y `xor` (x .&. temperingMask2)) `shiftL` 7
+untemper_f3 y = y `xor` ((y `shiftL` 15) .&. temperingMask3)
+untemper_f4 y = y `xor` (y `shiftR` 18)
+
+prop_temper_f1_inv :: Word32 -> Bool
+prop_temper_f1_inv w = untemper_f1 (temper_f1 w) == w
+
+prop_temper_f2_inv :: Word32 -> Bool
+prop_temper_f2_inv w = untemper_f2 (temper_f2 w) == w
+
+prop_temper_f3_inv :: Word32 -> Bool
+prop_temper_f3_inv w = untemper_f3 (temper_f3 w) == w
+
+prop_temper_f4_inv :: Word32 -> Bool
+prop_temper_f4_inv w = untemper_f4 (temper_f4 w) == w
+
+prop_temper_inv :: Word32 -> Bool
+prop_temper_inv w = untemper (temper w) == w
 
 incrIndex :: MT -> MT
 incrIndex m = m { mtIndex = (mtIndex m + 1) `mod` 624 }
@@ -265,3 +308,7 @@ recoverSeed low hi target =
         where
             ok n =
                 target == evalState nextMT (createMT n)
+
+-- | QuickCheck tests for this module.
+checkMTProps :: IO Bool
+checkMTProps = $quickCheckAll
