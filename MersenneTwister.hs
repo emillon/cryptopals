@@ -5,6 +5,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module MersenneTwister ( createMT
+                       , createMTfromState
                        , nextMT
                        , mtTests
                        , recoverSeed
@@ -39,6 +40,13 @@ createMT seed =
 initMT :: (Word32, Word32) -> (Word32, Word32)
 initMT (i, n) =
     (i+1, 0x6c078965 * (n `xor` (n `shiftR` 30)) + i + 1)
+
+-- | Initialize a MT with a state array. Index is set to 1.
+createMTfromState :: [Word32] -> MT
+createMTfromState st =
+    MT { mtArray = listArray (0, 623) st
+       , mtIndex = 1
+       }
 
 -- | Generate a new Word32.
 nextMT :: MonadState MT m => m Word32

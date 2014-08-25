@@ -438,6 +438,22 @@ chall22 :: Test
 chall22 =
     "Challenge 22" ~: Just 1408957948 ~=? recoverSeed (1408958118-1000) 1408958118 37359908
 
+chall23 :: Test
+chall23 = "Challenge 23" ~: do
+    n <- (randomRIO (minBound, maxBound) :: IO Word32)
+    let mt = createMT n
+        mt' = execState nextMT mt
+        l = map untemper $ evalState m mt'
+        m = forM [1::Int ..624] $ \ _ -> nextMT
+        mt2 = createMTfromState l
+        go 0 _ _ = return ()
+        go r mta mtb = do
+            let (na, mta') = runState nextMT mta
+                (nb, mtb') = runState nextMT mtb
+            assertEqual "MT state is the same" na nb
+            go (r-1) mta' mtb'
+    go (10::Int) (execState nextMT mt') mt2
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -467,4 +483,5 @@ main = do
             , chall20
             , mtTests
             , chall22
+            , chall23
             ]
