@@ -11,6 +11,8 @@ module MersenneTwister ( createMT
                        , recoverSeed
                        , checkMTProps
                        , untemper
+                       , mt19937cryptCTR
+                       , mt19937decryptCTR
                        ) where
 
 import Control.Monad.State
@@ -20,6 +22,11 @@ import Data.List
 import Data.Word
 import Test.HUnit
 import Test.QuickCheck.All
+
+import qualified Data.ByteString as B
+
+import Misc
+import XOR
 
 type Seed = Word32
 
@@ -320,3 +327,33 @@ recoverSeed low hi target =
 -- | QuickCheck tests for this module.
 checkMTProps :: IO Bool
 checkMTProps = $quickCheckAll
+
+assembleW64 :: Word32 -> Word32 -> Word64
+assembleW64 lo hi =
+    fromIntegral lo .|. (fromIntegral hi `shiftL` 32)
+
+-- | The MT19937 CTR "cipher" crypt function.
+mt19937cryptCTR :: Word32       -- ^ Key
+                -> B.ByteString -- ^ Plaintext
+                -> B.ByteString
+mt19937cryptCTR key plain =
+    B.concat $ zipWith xorBuffer plainBlocks keyBlocks
+        where
+            nblocks = 1 + (B.length plain `div` 16)
+            plainBlocks = map (\ i -> nthChunk 16 i plain) [0..nblocks-1]
+            keyBlocks = evalState keyBlocksM $ createMT key
+            keyBlocksM = forM [0..nblocks-1] $ \ _ -> do
+                a <- nextMT
+                b <- nextMT
+                c <- nextMT
+                d <- nextMT
+                let ab = w64LEtoBS $ assembleW64 a b
+                    cd = w64LEtoBS $ assembleW64 c d
+                return $ B.append ab cd
+
+-- | The MT19937 CTR "cipher" decrypt function.
+-- Due to how CTR works, it is the same as the 'mt19937cryptCTR'.
+mt19937decryptCTR :: Word32       -- ^ Key
+                  -> B.ByteString -- ^ Ciphertext
+                  -> B.ByteString
+mt19937decryptCTR = mt19937cryptCTR

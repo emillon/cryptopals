@@ -9,9 +9,11 @@ module Misc ( chunksOfSize
             , bsMapIdx
             , randomWithin
             , bsUcFirst
+            , w64LEtoBS
             ) where
 
 import Control.Monad
+import Data.Bits
 import Data.Char
 import Data.Word
 import System.Random
@@ -77,3 +79,17 @@ bsUcFirst =
             go 0 w = upperWord w
             go _ w = w
             upperWord = fromIntegral . ord . toUpper . chr . fromIntegral
+
+-- | Encode a Word64 to a bytestring, in little endian order.
+w64LEtoBS :: Word64 -> B.ByteString
+w64LEtoBS n =
+    B.pack [b0, b1, b2, b3, b4, b5, b6, b7]
+        where
+            b0 = fromIntegral   (n .&. 0x00000000000000ff)
+            b1 = fromIntegral $ (n .&. 0x000000000000ff00) `shiftR` (8*1)
+            b2 = fromIntegral $ (n .&. 0x0000000000ff0000) `shiftR` (8*2)
+            b3 = fromIntegral $ (n .&. 0x00000000ff000000) `shiftR` (8*3)
+            b4 = fromIntegral $ (n .&. 0x000000ff00000000) `shiftR` (8*4)
+            b5 = fromIntegral $ (n .&. 0x0000ff0000000000) `shiftR` (8*5)
+            b6 = fromIntegral $ (n .&. 0x00ff000000000000) `shiftR` (8*6)
+            b7 = fromIntegral $ (n .&. 0xff00000000000000) `shiftR` (8*7)

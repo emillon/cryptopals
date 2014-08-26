@@ -632,19 +632,6 @@ aes128decryptCTR key nonce cipher =
             block i = (nthChunk 16 i cipher) `xorBuffer` keyBlock i
             keyBlock i = aes128cryptBlock key $ B.append nonce $ w64LEtoBS $ fromIntegral i
 
-w64LEtoBS :: Word64 -> B.ByteString
-w64LEtoBS n =
-    B.pack [b0, b1, b2, b3, b4, b5, b6, b7]
-        where
-            b0 = fromIntegral   (n .&. 0x00000000000000ff)
-            b1 = fromIntegral $ (n .&. 0x000000000000ff00) `shiftR` (8*1)
-            b2 = fromIntegral $ (n .&. 0x0000000000ff0000) `shiftR` (8*2)
-            b3 = fromIntegral $ (n .&. 0x00000000ff000000) `shiftR` (8*3)
-            b4 = fromIntegral $ (n .&. 0x000000ff00000000) `shiftR` (8*4)
-            b5 = fromIntegral $ (n .&. 0x0000ff0000000000) `shiftR` (8*5)
-            b6 = fromIntegral $ (n .&. 0x00ff000000000000) `shiftR` (8*6)
-            b7 = fromIntegral $ (n .&. 0xff00000000000000) `shiftR` (8*7)
-
 -- | Crypt a ciphertext using CTR mode.
 -- Because of how CTR works, that is actually the same as 'aes128decryptCTR'.
 aes128cryptCTR :: B.ByteString -- ^ Key
