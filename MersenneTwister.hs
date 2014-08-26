@@ -333,7 +333,7 @@ assembleW64 lo hi =
     fromIntegral lo .|. (fromIntegral hi `shiftL` 32)
 
 -- | The MT19937 CTR "cipher" crypt function.
-mt19937cryptCTR :: Word32       -- ^ Key
+mt19937cryptCTR :: Word16       -- ^ Key
                 -> B.ByteString -- ^ Plaintext
                 -> B.ByteString
 mt19937cryptCTR key plain =
@@ -341,7 +341,7 @@ mt19937cryptCTR key plain =
         where
             nblocks = 1 + (B.length plain `div` 16)
             plainBlocks = map (\ i -> nthChunk 16 i plain) [0..nblocks-1]
-            keyBlocks = evalState keyBlocksM $ createMT key
+            keyBlocks = evalState keyBlocksM $ createMT $ fromIntegral key
             keyBlocksM = forM [0..nblocks-1] $ \ _ -> do
                 a <- nextMT
                 b <- nextMT
@@ -353,7 +353,7 @@ mt19937cryptCTR key plain =
 
 -- | The MT19937 CTR "cipher" decrypt function.
 -- Due to how CTR works, it is the same as the 'mt19937cryptCTR'.
-mt19937decryptCTR :: Word32       -- ^ Key
+mt19937decryptCTR :: Word16       -- ^ Key
                   -> B.ByteString -- ^ Ciphertext
                   -> B.ByteString
 mt19937decryptCTR = mt19937cryptCTR
