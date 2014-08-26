@@ -454,8 +454,22 @@ chall23 = "Challenge 23" ~: do
             go (r-1) mta' mtb'
     go (10::Int) (execState nextMT mt') mt2
 
-main :: IO ()
-main = do
+cc :: IO ()
+cc = do
+    n <- randomRIO (4, 20)
+    prefix <- randomBytes n
+    key <- randomIO
+    let as = nTimesA 14
+        plain = B.append prefix as
+        cipher = mt19937cryptCTR key plain
+    print cipher
+    let try w = as `B.isSuffixOf` mt19937cryptCTR w cipher
+    print $ head $ filter try [0..]
+
+main = cc
+
+main' :: IO ()
+main' = do
     args <- getArgs
     case args of
         ["-c"] -> do

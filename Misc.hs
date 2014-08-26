@@ -10,6 +10,7 @@ module Misc ( chunksOfSize
             , randomWithin
             , bsUcFirst
             , w64LEtoBS
+            , nTimesA
             ) where
 
 import Control.Monad
@@ -93,3 +94,8 @@ w64LEtoBS n =
             b5 = fromIntegral $ (n .&. 0x0000ff0000000000) `shiftR` (8*5)
             b6 = fromIntegral $ (n .&. 0x00ff000000000000) `shiftR` (8*6)
             b7 = fromIntegral $ (n .&. 0xff00000000000000) `shiftR` (8*7)
+
+-- | A bytestring with n times the letter 'A'.
+nTimesA :: Int -> B.ByteString
+nTimesA n =
+    B.replicate n $ fromIntegral $ ord 'A'

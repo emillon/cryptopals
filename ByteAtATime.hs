@@ -4,7 +4,6 @@ module ByteAtATime ( aesUnknown
                    , unknownBytesRandom
                    ) where
 
-import Data.Char
 import Data.Word
 import System.Random
 
@@ -20,10 +19,6 @@ aesUnknown after input =
     aes128cryptECB key $ padPkcs7 $ B.append input after
         where
             key = unHex "be0c fb9c 2c27 b79b e358 a079 4271 3776"
-
-nTimesA :: Int -> B.ByteString
-nTimesA n =
-    B.replicate n $ fromIntegral $ ord 'A'
 
 detectBlockSize :: (B.ByteString -> B.ByteString) -> Int
 detectBlockSize f =
