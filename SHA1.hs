@@ -28,14 +28,14 @@ prepare bs =
             ml = fromIntegral $ 8 * n
             size = w64BEtoBS ml
 
-type SHA1State = (Word32, Word32, Word32, Word32, Word32)
+data SHA1State = SHA1S !Word32 !Word32 !Word32 !Word32 !Word32
 
 initState :: SHA1State
-initState = (0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0)
+initState = SHA1S 0x67452301 0xEFCDAB89 0x98BADCFE 0x10325476 0xC3D2E1F0
 
 stateAdd :: SHA1State -> SHA1State -> SHA1State
-stateAdd (xa, xb, xc, xd, xe) (ya, yb, yc, yd, ye) =
-    (xa + ya, xb + yb, xc + yc, xd + yd, xe + ye)
+stateAdd (SHA1S xa xb xc xd xe) (SHA1S ya yb yc yd ye) =
+    SHA1S (xa + ya) (xb + yb) (xc + yc) (xd + yd) (xe + ye)
 
 update :: SHA1State -> B.ByteString -> SHA1State
 update s0 bs =
@@ -49,11 +49,11 @@ update s0 bs =
                 , (0x8F1BBCDC, step1_maj)
                 , (0xCA62C1D6, step1_par)
                 ]
-            step1_ch (_, b, c, d, _) = (b .&. c) .|. (complement b .&. d)
-            step1_par (_, b, c, d, _) = b `xor` c `xor` d
-            step1_maj (_, b, c, d, _) = (b .&. c) .|. (b .&. d) .|. (c .&. d)
-            step (s@(a, b, c, d, e)) (wi, (k, funF)) =
-                ((a `rotateL` 5) + funF s + e + k + wi, a, b `rotateL` 30, c, d)
+            step1_ch (SHA1S _ b c d _) = (b .&. c) .|. (complement b .&. d)
+            step1_par (SHA1S _ b c d _) = b `xor` c `xor` d
+            step1_maj (SHA1S _ b c d _) = (b .&. c) .|. (b .&. d) .|. (c .&. d)
+            step (s@(SHA1S a b c d e)) (wi, (k, funF)) =
+                SHA1S ((a `rotateL` 5) + funF s + e + k + wi) a (b `rotateL` 30) c d
 
 expand :: B.ByteString -> [Word32]
 expand bs = elems w
@@ -65,7 +65,7 @@ expand bs = elems w
                             `xor` (w ! (i-16))) `rotateL` 1) | i <- [16..79]]
 
 digest :: SHA1State -> B.ByteString
-digest (a, b, c, d, e) =
+digest (SHA1S a b c d e) =
     B.concat $ map w32BEtoBS [a, b, c, d, e]
 
 -- | HUnit tests for this module.
