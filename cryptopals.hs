@@ -22,6 +22,7 @@ import LetterFreq
 import MersenneTwister
 import Misc
 import PaddingOracle
+import SHA1
 import XOR
 
 chall01 :: Test
@@ -466,7 +467,7 @@ cc = do
     let try w = as `B.isSuffixOf` mt19937cryptCTR w cipher
     print $ head $ filter try [0..]
 
-main = cc
+main = runTestTT sha1Tests
 
 main' :: IO ()
 main' = do
@@ -475,6 +476,7 @@ main' = do
         ["-c"] -> do
             void $ checkAESProps
             void $ checkMTProps
+            void $ checkMiscProps
         _ -> void $ runTestTT $ TestList
             [ chall01
             , chall02
@@ -498,4 +500,5 @@ main' = do
             , mtTests
             , chall22
             , chall23
+            , sha1Tests
             ]

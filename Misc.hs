@@ -1,4 +1,7 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | Miscellaneous functions that are used all around the code.
+
 module Misc ( chunksOfSize
             , nthChunk
             , fst3
@@ -10,7 +13,11 @@ module Misc ( chunksOfSize
             , randomWithin
             , bsUcFirst
             , w64LEtoBS
+            , w64BEtoBS
             , nTimesA
+            , bsToNthW32BE
+            , w32BEtoBS
+            , checkMiscProps
             ) where
 
 import Control.Monad
@@ -18,6 +25,7 @@ import Data.Bits
 import Data.Char
 import Data.Word
 import System.Random
+import Test.QuickCheck.All
 
 import qualified Data.ByteString as B
 
@@ -95,7 +103,44 @@ w64LEtoBS n =
             b6 = fromIntegral $ (n .&. 0x00ff000000000000) `shiftR` (8*6)
             b7 = fromIntegral $ (n .&. 0xff00000000000000) `shiftR` (8*7)
 
+-- | Encode a Word64 to a bytestring, in big endian order.
+w64BEtoBS :: Word64 -> B.ByteString
+w64BEtoBS = B.reverse . w64LEtoBS
+
 -- | A bytestring with n times the letter 'A'.
 nTimesA :: Int -> B.ByteString
 nTimesA n =
     B.replicate n $ fromIntegral $ ord 'A'
+
+-- | Fetch the nth 32-bit word in a bytestring, in big endian order.
+bsToNthW32BE :: B.ByteString -> Int -> Word32
+bsToNthW32BE bs n =
+    bsToW32BE $ B.take 4 $ B.drop (4*n) bs
+
+bsToW32BE :: B.ByteString -> Word32
+bsToW32BE bs =
+    sum [ 0x0000001 * get 3
+        , 0x0000100 * get 2
+        , 0x0010000 * get 1
+        , 0x1000000 * get 0
+        ]
+        where
+            get i = fromIntegral $ B.index bs i
+
+-- | Convert a Word32 to a bytestring, in big endian order.
+w32BEtoBS :: Word32 -> B.ByteString
+w32BEtoBS n =
+    B.pack [a, b, c, d]
+        where
+            a = fromIntegral $ (n .&. 0xff000000) `shiftR` (8*3)
+            b = fromIntegral $ (n .&. 0x00ff0000) `shiftR` (8*2)
+            c = fromIntegral $ (n .&. 0x0000ff00) `shiftR` (8*1)
+            d = fromIntegral $ (n .&. 0x000000ff)
+
+prop_w32be_inv :: Word32 -> Bool
+prop_w32be_inv w =
+    bsToW32BE (w32BEtoBS w) == w
+
+-- | QuickCheck tests for this module.
+checkMiscProps :: IO Bool
+checkMiscProps = $quickCheckAll
