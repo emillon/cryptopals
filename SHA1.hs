@@ -1,6 +1,9 @@
 -- | SHA1 implementation for strict bytestrings.
 
-module SHA1 (sha1Tests) where
+module SHA1 ( sha1
+            , sha1Tests
+            , sha1mac
+            ) where
 
 import Data.Array
 import Data.Bits
@@ -13,9 +16,17 @@ import qualified Data.ByteString as B
 import Base64
 import Misc
 
+-- | Compute the digest of a message (not hex-encoded!)
 sha1 :: B.ByteString -> B.ByteString
 sha1 bs =
     digest $ foldl' update initState $ chunksOfSize 64 $ prepare bs
+
+-- | Compute the MAC of a message under a given key.
+sha1mac :: B.ByteString -- ^ Key
+        -> B.ByteString -- ^ Message
+        -> B.ByteString
+sha1mac key message =
+    sha1 $ B.append key message
 
 prepare :: B.ByteString -> B.ByteString
 prepare bs =
