@@ -118,10 +118,19 @@ mixTests = TestList
                 ]
 
 -- Word32s are little endian
-type AESState = (Word32, Word32, Word32, Word32)
+data AESState = AES !Word32 !Word32 !Word32 !Word32
+    deriving (Eq, Show)
+
+instance Arbitrary AESState where
+    arbitrary = do
+        a <- arbitrary
+        b <- arbitrary
+        c <- arbitrary
+        d <- arbitrary
+        return $ AES a b c d
 
 aesStateJoin :: AESState -> B.ByteString
-aesStateJoin (a, b, c, d) =
+aesStateJoin (AES a b c d) =
     B.concat $ map w32ToBs [a, b, c, d]
 
 w32toBytes :: Word32 -> (Word8, Word8, Word8, Word8)
@@ -134,11 +143,10 @@ w32toBytes n =
 
 aesStateSplit :: B.ByteString -> AESState
 aesStateSplit bs =
-    ( bsToW32 $ nthChunk 4 0 bs
-    , bsToW32 $ nthChunk 4 1 bs
-    , bsToW32 $ nthChunk 4 2 bs
-    , bsToW32 $ nthChunk 4 3 bs
-    )
+    AES (bsToW32 $ nthChunk 4 0 bs)
+        (bsToW32 $ nthChunk 4 1 bs)
+        (bsToW32 $ nthChunk 4 2 bs)
+        (bsToW32 $ nthChunk 4 3 bs)
 
 bsToW32 :: B.ByteString -> Word32
 bsToW32 bs =
@@ -167,8 +175,8 @@ keySchedule k =
             k0 = aesStateSplit k
 
 keyExpand :: Word8 -> AESState -> AESState
-keyExpand n (ka, kb, kc, kd) =
-    (ka', kb', kc', kd')
+keyExpand n (AES ka kb kc kd) =
+    AES ka' kb' kc' kd'
         where
             ka' = xor (scheduleCore n kd) ka
             kb' = xor kb ka'
@@ -464,12 +472,11 @@ addRoundKeyRev = addRoundKey
 -- a2 b2 c2 d2  -->  c2 d2 a2 b2
 -- a3 b3 c3 d3       d3 a3 b3 c3
 shiftRows :: AESState -> AESState
-shiftRows (a, b, c, d) =
-    ( bytesToW32 (a0, b1, c2, d3)
-    , bytesToW32 (b0, c1, d2, a3)
-    , bytesToW32 (c0, d1, a2, b3)
-    , bytesToW32 (d0, a1, b2, c3)
-    )
+shiftRows (AES a b c d) =
+    AES (bytesToW32 (a0, b1, c2, d3))
+        (bytesToW32 (b0, c1, d2, a3))
+        (bytesToW32 (c0, d1, a2, b3))
+        (bytesToW32 (d0, a1, b2, c3))
         where
             (a0, a1, a2, a3) = w32toBytes a
             (b0, b1, b2, b3) = w32toBytes b
@@ -481,12 +488,11 @@ shiftRows (a, b, c, d) =
 -- a2 b2 c2 d2  -->  c2 d2 a2 b2
 -- a3 b3 c3 d3       b3 c3 d3 a3
 shiftRowsRev :: AESState -> AESState
-shiftRowsRev (a, b, c, d) =
-    ( bytesToW32 (a0, d1, c2, b3)
-    , bytesToW32 (b0, a1, d2, c3)
-    , bytesToW32 (c0, b1, a2, d3)
-    , bytesToW32 (d0, c1, b2, a3)
-    )
+shiftRowsRev (AES a b c d) =
+    AES (bytesToW32 (a0, d1, c2, b3))
+        (bytesToW32 (b0, a1, d2, c3))
+        (bytesToW32 (c0, b1, a2, d3))
+        (bytesToW32 (d0, c1, b2, a3))
         where
             (a0, a1, a2, a3) = w32toBytes a
             (b0, b1, b2, b3) = w32toBytes b
@@ -516,12 +522,12 @@ mapBytes f w =
             (a, b, c, d) = w32toBytes w
 
 forColumn :: (Word32 -> Word32) -> AESState -> AESState
-forColumn f (a, b, c, d) =
-    (f a, f b, f c, f d)
+forColumn f (AES a b c d) =
+    AES (f a) (f b) (f c) (f d)
 
 forColumn2 :: (Word32 -> Word32 -> Word32) -> AESState -> AESState -> AESState
-forColumn2 f (xa, xb, xc, xd) (ya, yb, yc, yd) =
-    (f xa ya , f xb yb , f xc yc , f xd yd)
+forColumn2 f (AES xa xb xc xd) (AES ya yb yc yd) =
+    AES (f xa ya) (f xb yb) (f xc yc) (f xd yd)
 
 mixColumnRev :: Word32 -> Word32
 mixColumnRev w =
