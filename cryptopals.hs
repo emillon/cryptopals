@@ -467,10 +467,8 @@ cc = do
     let try w = as `B.isSuffixOf` mt19937cryptCTR w cipher
     print $ head $ filter try [0..]
 
-main = runTestTT sha1Tests
-
-main' :: IO ()
-main' = do
+main :: IO ()
+main = do
     args <- getArgs
     case args of
         ["-c"] -> do
