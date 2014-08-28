@@ -79,10 +79,10 @@ expand :: B.ByteString -> Array Int Word32
 expand bs = w
     where
         w = array (0, 79) $ [(i, bsToNthW32BE bs i) | i <- [0..15]]
-                         ++ [(i, (w ! (i-3))
-                           `xor` (w ! (i-8))
-                           `xor` (w ! (i-14))
-                           `xor` (w ! (i-16))) | i <- [16..79]]
+                         ++ [(i, ((w ! (i-3))
+                            `xor` (w ! (i-8))
+                            `xor` (w ! (i-14))
+                            `xor` (w ! (i-16))) `rotateL` 1) | i <- [16..79]]
 
 digest :: SHA1State -> B.ByteString
 digest (a, b, c, d, e) =
