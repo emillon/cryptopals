@@ -31,13 +31,7 @@ prepare bs =
 type SHA1State = (Word32, Word32, Word32, Word32, Word32)
 
 initState :: SHA1State
-initState =
-    ( 0x67452301
-    , 0xEFCDAB89
-    , 0x98BADCFE
-    , 0x10325476
-    , 0xC3D2E1F0
-    )
+initState = (0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0)
 
 stateAdd :: SHA1State -> SHA1State -> SHA1State
 stateAdd (xa, xb, xc, xd, xe) (ya, yb, yc, yd, ye) =
@@ -48,35 +42,21 @@ update s0 bs =
     stateAdd s0 s'
         where
             w = expand bs
-            s' = foldl' (step w) s0 [0..79]
+            s' = foldl' step s0 $ zip w phases
+            phases = concat $ map (\ p -> replicate 20 p)
+                [ (0x5A827999, step1_ch)
+                , (0x6ED9EBA1, step1_par)
+                , (0x8F1BBCDC, step1_maj)
+                , (0xCA62C1D6, step1_par)
+                ]
+            step1_ch (_, b, c, d, _) = (b .&. c) .|. (complement b .&. d)
+            step1_par (_, b, c, d, _) = b `xor` c `xor` d
+            step1_maj (_, b, c, d, _) = (b .&. c) .|. (b .&. d) .|. (c .&. d)
+            step (s@(a, b, c, d, e)) (wi, (k, funF)) =
+                ((a `rotateL` 5) + funF s + e + k + wi, a, b `rotateL` 30, c, d)
 
-step :: Array Int Word32 -> SHA1State -> Int -> SHA1State
-step w (s@(a, b, c, d, e)) i =
-    let f = compF i s
-        k = compK i
-        temp = (a `rotateL` 5) + f + e + k + (w ! i)
-        e' = d
-        d' = c
-        c' = b `rotateL` 30
-        b' = a
-        a' = temp
-    in
-    (a', b', c', d', e')
-
-compF :: Int -> SHA1State -> Word32
-compF i (_, b, c, d, _) | inRange ( 0, 19) i = (b .&. c) .|. (complement b .&. d)
-compF i (_, b, c, d, _) | inRange (20, 39) i = b `xor` c `xor` d
-compF i (_, b, c, d, _) | inRange (40, 59) i = (b .&. c) .|. (b .&. d) .|. (c .&. d)
-compF i (_, b, c, d, _) | inRange (60, 79) i = b `xor` c `xor` d
-
-compK :: Int -> Word32
-compK i | inRange ( 0, 19) i = 0x5A827999
-compK i | inRange (20, 39) i = 0x6ED9EBA1
-compK i | inRange (40, 59) i = 0x8F1BBCDC
-compK i | inRange (60, 79) i = 0xCA62C1D6
-
-expand :: B.ByteString -> Array Int Word32
-expand bs = w
+expand :: B.ByteString -> [Word32]
+expand bs = elems w
     where
         w = array (0, 79) $ [(i, bsToNthW32BE bs i) | i <- [0..15]]
                          ++ [(i, ((w ! (i-3))
