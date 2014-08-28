@@ -64,10 +64,10 @@ step w (s@(a, b, c, d, e)) i =
     (a', b', c', d', e')
 
 compF :: Int -> SHA1State -> Word32
-compF i (_, b, c, d, _) | inRange ( 0, 19) i = (b .&. c) .|. ((complement b) .&. d)
-compF i (_, b, c, d, _) | inRange (20, 39) i = (b `xor` c `xor` d)
+compF i (_, b, c, d, _) | inRange ( 0, 19) i = (b .&. c) .|. (complement b .&. d)
+compF i (_, b, c, d, _) | inRange (20, 39) i = b `xor` c `xor` d
 compF i (_, b, c, d, _) | inRange (40, 59) i = (b .&. c) .|. (b .&. d) .|. (c .&. d)
-compF i (_, b, c, d, _) | inRange (60, 79) i = (b `xor` c `xor` d)
+compF i (_, b, c, d, _) | inRange (60, 79) i = b `xor` c `xor` d
 
 compK :: Int -> Word32
 compK i | inRange ( 0, 19) i = 0x5A827999
