@@ -502,7 +502,8 @@ chall29 = "Challenge 29" ~:
             mac = sha1PrefixMac key message
             extension = string2bs ";admin=true"
             extendedMsg = B.append message suffix
-            (suffix, extendedMac) = sha1Extend (16 + B.length message) mac extension
+            oracle = checkSha1PrefixMac key
+            (suffix, extendedMac) = sha1Extend oracle message mac extension
 
 main :: IO ()
 main = do

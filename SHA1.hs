@@ -6,6 +6,7 @@ module SHA1 ( sha1
             , checkSha1PrefixMac
             , checkSHA1Props
             , sha1Extend
+            , sha1ExtendN
             ) where
 
 import Data.Array
@@ -148,18 +149,33 @@ prop_sha1_extension (GBSA m) (GBSA e) =
             paddedExt = B.append e $ padding extended
             originalsha = injectState $ sha1 m
 
+-- | Prepare a valid extension for a Hash Extension Attack (knowing key length).
+sha1ExtendN :: Int           -- ^ Len of key
+            -> Int           -- ^ Len of original MAC'd message
+            -> B.ByteString  -- ^ MAC
+            -> B.ByteString  -- ^ Expected extension
+            -> (B.ByteString, B.ByteString) -- ^ (suffix, new MAC)
+sha1ExtendN keyLen msgLen mac ext =
+    (suffix, newMac)
+        where
+            totalLen = keyLen + msgLen
+            suffix = B.append glue ext
+            glue = paddingLen totalLen
+            paddedExt = B.append ext $ paddingLen $ totalLen + B.length suffix
+            newMac = digest (update (injectState mac) paddedExt)
+
 -- | Prepare a valid extension for a Hash Extension Attack.
-sha1Extend :: Int           -- ^ Len of (key + original MAC'd message)
+-- It needs an oracle to check if a MAC is valid (to detect key length).
+sha1Extend :: (B.ByteString -> B.ByteString -> Bool) -- ^ Oracle (takes msg & mac)
+           -> B.ByteString  -- ^ Original MAC'd message
            -> B.ByteString  -- ^ MAC
            -> B.ByteString  -- ^ Expected extension
            -> (B.ByteString, B.ByteString) -- ^ (suffix, new MAC)
-sha1Extend msgLen mac ext =
-    (suffix, newMac)
+sha1Extend oracle message mac ext =
+    head $ filter ok $ map (\ n -> sha1ExtendN n msgLen mac ext) [1..30]
         where
-            suffix = B.append glue ext
-            glue = paddingLen msgLen
-            paddedExt = B.append ext $ paddingLen $ msgLen + B.length suffix
-            newMac = digest (update (injectState mac) paddedExt)
+            ok (suffix, newMac) = oracle (B.append message suffix) newMac
+            msgLen = B.length message
 
 prop_sha1_extension_attack :: GeneratedBS16 -> GeneratedBSA -> GeneratedBSA -> Property
 prop_sha1_extension_attack (GBS16 key) (GBSA message) (GBSA extension) =
@@ -167,7 +183,8 @@ prop_sha1_extension_attack (GBS16 key) (GBSA message) (GBSA extension) =
     checkSha1PrefixMac key extMsg extMac && extension `B.isSuffixOf` extMsg
         where
             mac = sha1PrefixMac key message
-            (suffix, extMac) = sha1Extend (16 + B.length message) mac extension
+            oracle = checkSha1PrefixMac key
+            (suffix, extMac) = sha1Extend oracle message mac extension
             extMsg = B.append message suffix
 
 -- | QuickCheck tests for this module.
