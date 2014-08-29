@@ -492,6 +492,18 @@ chall25 = TestCase $ do
     let res = map (chr . fromIntegral) $ take 16 $ breakCTRedit cipher edit
     assertEqual "Challenge 25" "I'm back and I'm" res
 
+chall29 :: Test
+chall29 = "Challenge 29" ~:
+    True ~=? ( checkSha1PrefixMac key extendedMsg extendedMac
+            && extension `B.isSuffixOf` extendedMsg )
+        where
+            key = unHex "5940 986f 2ab6 27c6 0489 1290 a0e7 fa0c"
+            message = string2bs "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon"
+            mac = sha1PrefixMac key message
+            extension = string2bs ";admin=true"
+            extendedMsg = B.append message suffix
+            (suffix, extendedMac) = sha1Extend (16 + B.length message) mac extension
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -526,4 +538,5 @@ main = do
             , chall23
             , chall25
             , sha1Tests
+            , chall29
             ]

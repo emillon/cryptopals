@@ -2,8 +2,10 @@
 
 module SHA1 ( sha1
             , sha1Tests
-            , sha1mac
+            , sha1PrefixMac
+            , checkSha1PrefixMac
             , checkSHA1Props
+            , sha1Extend
             ) where
 
 import Data.Array
@@ -23,25 +25,35 @@ sha1 :: B.ByteString -> B.ByteString
 sha1 bs =
     digest $ foldl' update initState $ chunksOfSize 64 $ prepare bs
 
--- | Compute the MAC of a message under a given key.
-sha1mac :: B.ByteString -- ^ Key
-        -> B.ByteString -- ^ Message
-        -> B.ByteString
-sha1mac key message =
+-- | Compute the prefix-MAC of a message under a given key.
+sha1PrefixMac :: B.ByteString -- ^ Key
+              -> B.ByteString -- ^ Message
+              -> B.ByteString
+sha1PrefixMac key message =
     sha1 $ B.append key message
+
+-- | Check the validity of a prefix-MAC.
+checkSha1PrefixMac :: B.ByteString -- ^ Key
+                   -> B.ByteString -- ^ Message
+                   -> B.ByteString -- ^ MAC
+                   -> Bool
+checkSha1PrefixMac key message mac =
+    sha1PrefixMac key message == mac
 
 prepare :: B.ByteString -> B.ByteString
 prepare bs =
     B.append bs $ padding bs
 
 padding :: B.ByteString -> B.ByteString
-padding bs =
+padding = paddingLen . B.length
+
+paddingLen :: Int -> B.ByteString
+paddingLen n =
     B.concat [B.singleton 0x80, pad, size]
         where
             modsize = (n+1) `mod` 64
             npad = (56 - modsize) `mod` 64
             pad = B.replicate npad 0x00
-            n = B.length bs
             ml = fromIntegral $ 8 * n
             size = w64BEtoBS ml
 
@@ -136,8 +148,31 @@ prop_sha1_extension (GBSA m) (GBSA e) =
             paddedExt = B.append e $ padding extended
             originalsha = injectState $ sha1 m
 
+-- | Prepare a valid extension for a Hash Extension Attack.
+sha1Extend :: Int           -- ^ Len of (key + original MAC'd message)
+           -> B.ByteString  -- ^ MAC
+           -> B.ByteString  -- ^ Expected extension
+           -> (B.ByteString, B.ByteString) -- ^ (suffix, new MAC)
+sha1Extend msgLen mac ext =
+    (suffix, newMac)
+        where
+            suffix = B.append glue ext
+            glue = paddingLen msgLen
+            paddedExt = B.append ext $ paddingLen $ msgLen + B.length suffix
+            newMac = digest (update (injectState mac) paddedExt)
+
+prop_sha1_extension_attack :: GeneratedBS16 -> GeneratedBSA -> GeneratedBSA -> Property
+prop_sha1_extension_attack (GBS16 key) (GBSA message) (GBSA extension) =
+    (B.length extension < 56) ==>
+    checkSha1PrefixMac key extMsg extMac && extension `B.isSuffixOf` extMsg
+        where
+            mac = sha1PrefixMac key message
+            (suffix, extMac) = sha1Extend (16 + B.length message) mac extension
+            extMsg = B.append message suffix
+
 -- | QuickCheck tests for this module.
 checkSHA1Props :: IO ()
 checkSHA1Props = do
-    quickCheck prop_sha1_extension
     quickCheck prop_inject_inv
+    quickCheck prop_sha1_extension
+    quickCheck prop_sha1_extension_attack
