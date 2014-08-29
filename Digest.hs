@@ -1,13 +1,13 @@
--- | SHA1 implementation for strict bytestrings.
+-- | Digest algorithm implementations for strict bytestrings.
 
-module SHA1 ( sha1
-            , sha1Tests
-            , sha1PrefixMac
-            , checkSha1PrefixMac
-            , checkSHA1Props
-            , sha1Extend
-            , sha1ExtendN
-            ) where
+module Digest ( sha1
+              , sha1Tests
+              , sha1PrefixMac
+              , checkSha1PrefixMac
+              , checkDigestProps
+              , sha1Extend
+              , sha1ExtendN
+              ) where
 
 import Data.Array
 import Data.Bits
@@ -108,7 +108,7 @@ digest :: SHA1State -> B.ByteString
 digest (SHA1S a b c d e) =
     B.concat $ map w32BEtoBS [a, b, c, d, e]
 
--- | HUnit tests for this module.
+-- | HUnit tests for the SHA1 implementation.
 sha1Tests :: Test
 sha1Tests =
     "SHA1" ~: map (uncurry tc)
@@ -188,8 +188,8 @@ prop_sha1_extension_attack (GBS16 key) (GBSA message) (GBSA extension) =
             extMsg = B.append message suffix
 
 -- | QuickCheck tests for this module.
-checkSHA1Props :: IO ()
-checkSHA1Props = do
+checkDigestProps :: IO ()
+checkDigestProps = do
     quickCheck prop_inject_inv
     quickCheck prop_sha1_extension
     quickCheck prop_sha1_extension_attack

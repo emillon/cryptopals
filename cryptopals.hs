@@ -18,12 +18,12 @@ import qualified Data.Map as M
 import AES
 import Base64
 import ByteAtATime
+import Digest
 import KeyValue
 import LetterFreq
 import MersenneTwister
 import Misc
 import PaddingOracle
-import SHA1
 import XOR
 
 chall01 :: Test
@@ -513,7 +513,7 @@ main = do
             checkAESProps
             checkMTProps
             checkMiscProps
-            checkSHA1Props
+            checkDigestProps
         _ -> void $ runTestTT $ TestList
             [ chall01
             , chall02
