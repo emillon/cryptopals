@@ -37,7 +37,7 @@ http://cryptopals.com/
 
 ## Set 4
 
-  - [ ] [Break "random access read/write" AES CTR](http://cryptopals.com/sets/4/challenges/25/)
+  - [X] [Break "random access read/write" AES CTR](http://cryptopals.com/sets/4/challenges/25/)
   - [ ] [CTR bitflipping](http://cryptopals.com/sets/4/challenges/26/)
   - [ ] [Recover the key from CBC with IV=Key](http://cryptopals.com/sets/4/challenges/27/)
   - [X] [Implement a SHA-1 keyed MAC](http://cryptopals.com/sets/4/challenges/28/)

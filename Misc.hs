@@ -18,6 +18,7 @@ module Misc ( chunksOfSize
             , bsToNthW32BE
             , w32BEtoBS
             , checkMiscProps
+            , spliceBS
             ) where
 
 import Control.Monad
@@ -144,3 +145,29 @@ prop_w32be_inv w =
 -- | QuickCheck tests for this module.
 checkMiscProps :: IO Bool
 checkMiscProps = $quickCheckAll
+
+-- | Replace part of a bytestring with a new bytestring.
+-- The replaced bytes start at a given offset.
+--
+-- @
+-- AAAAAAAAAAAAAAAAAAAAAAAAAAAA
+--             BBBBBBBB
+-- ---- n ---->
+-- @
+--
+-- becomes
+--
+-- @
+-- AAAAAAAAAAAABBBBBBBBAAAAAAAA
+--      b1        b2      b3
+-- @
+spliceBS :: B.ByteString -- ^ Original bytestring
+         -> Int          -- ^ Offset
+         -> B.ByteString -- ^ Bytestring to insert
+         -> B.ByteString
+spliceBS bs off sub =
+    B.concat [b1, b2, b3]
+        where
+            b1 = B.take off bs
+            b2 = sub
+            b3 = B.drop (off + B.length sub) bs

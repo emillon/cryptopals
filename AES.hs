@@ -14,6 +14,7 @@ module AES ( aesTests
            , zeroNonce
            , aes128decryptCTR
            , aes128cryptCTR
+           , breakCTRedit
            ) where
 
 import Control.Monad.RWS hiding (state)
@@ -645,3 +646,14 @@ aes128cryptCTR :: B.ByteString -- ^ Key
                -> B.ByteString -- ^ Plaintext
                -> B.ByteString
 aes128cryptCTR = aes128decryptCTR
+
+-- | Break CTR using an "edit function"
+breakCTRedit :: B.ByteString                                          -- ^ Cipher
+             -> (B.ByteString -> Int -> B.ByteString -> B.ByteString) -- ^ Edit
+             -> [Word8]                                               -- ^ Plain
+breakCTRedit cipher edit =
+    map findByte [0..n-1]
+        where
+            try off w = edit cipher off (B.singleton w) == cipher
+            findByte off = head $ filter (try off) [0..]
+            n = B.length cipher

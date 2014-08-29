@@ -2,6 +2,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Data.Bits
+import Data.Char
 import Data.List
 import Data.List.Split hiding (chunk)
 import Data.Maybe
@@ -467,6 +468,30 @@ cc = do
     let try w = as `B.isSuffixOf` mt19937cryptCTR w cipher
     print $ head $ filter try [0..]
 
+editCTR :: B.ByteString -> B.ByteString -> B.ByteString -> Int -> B.ByteString -> B.ByteString
+editCTR key nonce cipher offset newtext =
+    aes128cryptCTR key nonce plain'
+        where
+            plain' = spliceBS plain offset newtext
+            plain = aes128decryptCTR key nonce cipher
+
+chall25prepare :: IO (B.ByteString, B.ByteString -> Int -> B.ByteString -> B.ByteString)
+chall25prepare = do
+    let key0 = string2bs "YELLOW SUBMARINE"
+        key = unHex "04d4 c154 c7f7 7650 cf37 64ed 10c4 e8c5"
+        nonce = zeroNonce
+    Just plain <- checkPadPkcs7
+              <$> aes128decryptECB key0
+              <$> readFileBase64 "challenge-data/25.txt"
+    let cipher = aes128cryptCTR key nonce plain
+    return (cipher, editCTR key nonce)
+
+chall25 :: Test
+chall25 = TestCase $ do
+    (cipher, edit) <- chall25prepare
+    let res = map (chr . fromIntegral) $ take 16 $ breakCTRedit cipher edit
+    assertEqual "Challenge 25" "I'm back and I'm" res
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -498,5 +523,6 @@ main = do
             , mtTests
             , chall22
             , chall23
+            , chall25
             , sha1Tests
             ]
