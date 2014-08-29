@@ -500,6 +500,7 @@ main = do
             void $ checkAESProps
             void $ checkMTProps
             void $ checkMiscProps
+            void $ checkSHA1Props
         _ -> void $ runTestTT $ TestList
             [ chall01
             , chall02

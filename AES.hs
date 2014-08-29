@@ -574,24 +574,16 @@ prop_aesRoundInv :: AESState -> AESState -> Bool
 prop_aesRoundInv k s =
     aesRoundRev k (aesRound k s) == s
 
-newtype GeneratedBS = GeneratedBS B.ByteString
-    deriving (Show)
-
-instance Arbitrary GeneratedBS where
-    arbitrary = do
-        bytes <- vector 16
-        return $ GeneratedBS $ B.pack bytes
-
-prop_joinSplit :: GeneratedBS -> Bool
-prop_joinSplit (GeneratedBS b) =
+prop_joinSplit :: GeneratedBS16 -> Bool
+prop_joinSplit (GBS16 b) =
     aesStateJoin (aesStateSplit b) == b
 
 prop_splitJoin :: AESState -> Bool
 prop_splitJoin s =
     aesStateSplit (aesStateJoin s) == s
 
-prop_aes128blockInv :: GeneratedBS -> GeneratedBS -> Bool
-prop_aes128blockInv (GeneratedBS k) (GeneratedBS b) =
+prop_aes128blockInv :: GeneratedBS16 -> GeneratedBS16 -> Bool
+prop_aes128blockInv (GBS16 k) (GBS16 b) =
     aes128decryptBlock k (aes128cryptBlock k b) == b
 
 -- | QuickCheck tests for this module.

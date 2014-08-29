@@ -19,14 +19,19 @@ module Misc ( chunksOfSize
             , w32BEtoBS
             , checkMiscProps
             , spliceBS
+            , GeneratedBS16(..)
+            , GeneratedBSA(..)
             ) where
 
+import Control.Applicative
 import Control.Monad
 import Data.Bits
 import Data.Char
 import Data.Word
 import System.Random
 import Test.QuickCheck.All
+import Test.QuickCheck.Arbitrary
+import Test.QuickCheck.Gen
 
 import qualified Data.ByteString as B
 
@@ -171,3 +176,21 @@ spliceBS bs off sub =
             b1 = B.take off bs
             b2 = sub
             b3 = B.drop (off + B.length sub) bs
+
+-- | Wrapper with an 'Arbitrary' instance that generates
+-- bytestrings of length 16.
+newtype GeneratedBS16 = GBS16 B.ByteString
+    deriving (Show)
+
+instance Arbitrary GeneratedBS16 where
+    arbitrary = GBS16 <$> B.pack <$> vector 16
+
+-- | Wrapper with an 'Arbitrary' instance that generates
+-- bytestrings of random length inclusively between 0 and 63.
+newtype GeneratedBSA = GBSA B.ByteString
+    deriving (Show)
+
+instance Arbitrary GeneratedBSA where
+    arbitrary = do
+        n <- choose (0, 63)
+        GBSA <$> B.pack <$> vector n

@@ -3,6 +3,7 @@
 module SHA1 ( sha1
             , sha1Tests
             , sha1mac
+            , checkSHA1Props
             ) where
 
 import Data.Array
@@ -10,6 +11,7 @@ import Data.Bits
 import Data.List
 import Data.Word
 import Test.HUnit
+import Test.QuickCheck hiding ((.&.))
 
 import qualified Data.ByteString as B
 
@@ -30,7 +32,11 @@ sha1mac key message =
 
 prepare :: B.ByteString -> B.ByteString
 prepare bs =
-    B.concat [bs, B.singleton 0x80, pad, size]
+    B.append bs $ padding bs
+
+padding :: B.ByteString -> B.ByteString
+padding bs =
+    B.concat [B.singleton 0x80, pad, size]
         where
             modsize = (n+1) `mod` 64
             npad = (56 - modsize) `mod` 64
@@ -40,6 +46,16 @@ prepare bs =
             size = w64BEtoBS ml
 
 data SHA1State = SHA1S !Word32 !Word32 !Word32 !Word32 !Word32
+    deriving (Eq, Show)
+
+instance Arbitrary SHA1State where
+    arbitrary = do
+        a <- arbitrary
+        b <- arbitrary
+        c <- arbitrary
+        d <- arbitrary
+        e <- arbitrary
+        return $ SHA1S a b c d e
 
 initState :: SHA1State
 initState = SHA1S 0x67452301 0xEFCDAB89 0x98BADCFE 0x10325476 0xC3D2E1F0
@@ -96,3 +112,32 @@ sha1Tests =
     where
         tc input spec =
             unHex spec ~=? sha1 (string2bs input)
+
+injectState :: B.ByteString -> SHA1State
+injectState bs =
+    SHA1S a b c d e
+        where
+            a = bsToNthW32BE bs 0
+            b = bsToNthW32BE bs 1
+            c = bsToNthW32BE bs 2
+            d = bsToNthW32BE bs 3
+            e = bsToNthW32BE bs 4
+
+prop_inject_inv :: SHA1State -> Bool
+prop_inject_inv s =
+    injectState (digest s) == s
+
+prop_sha1_extension :: GeneratedBSA -> GeneratedBSA -> Property
+prop_sha1_extension (GBSA m) (GBSA e) =
+    (B.length e < 56) ==> sha1 extended == digest (update originalsha paddedExt)
+        where
+            extended = B.concat [m, glue, e]
+            glue = padding m
+            paddedExt = B.append e $ padding extended
+            originalsha = injectState $ sha1 m
+
+-- | QuickCheck tests for this module.
+checkSHA1Props :: IO ()
+checkSHA1Props = do
+    quickCheck prop_sha1_extension
+    quickCheck prop_inject_inv
