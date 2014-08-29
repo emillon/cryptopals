@@ -540,4 +540,5 @@ main = do
             , chall25
             , sha1Tests
             , chall29
+            , md4Tests
             ]

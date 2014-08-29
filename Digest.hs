@@ -7,13 +7,15 @@ module Digest ( sha1
               , checkDigestProps
               , sha1Extend
               , sha1ExtendN
+              , md4Tests
               ) where
 
+import Control.Monad.State
 import Data.Array
 import Data.Bits
 import Data.List
 import Data.Word
-import Test.HUnit
+import Test.HUnit hiding (State)
 import Test.QuickCheck hiding ((.&.))
 
 import qualified Data.ByteString as B
@@ -21,7 +23,7 @@ import qualified Data.ByteString as B
 import Base64
 import Misc
 
--- | Compute the digest of a message (not hex-encoded!)
+-- | Compute the SHA1 digest of a message (not hex-encoded!)
 sha1 :: B.ByteString -> B.ByteString
 sha1 bs =
     digest $ foldl' update initState $ chunksOfSize 64 $ prepare bs
@@ -193,3 +195,171 @@ checkDigestProps = do
     quickCheck prop_inject_inv
     quickCheck prop_sha1_extension
     quickCheck prop_sha1_extension_attack
+
+-- | HUnit tests for the MD4 implementation.
+md4Tests :: Test
+md4Tests =
+    "MD4" ~: map (uncurry tc)
+        [ (""
+          , "31d6cfe0d16ae931b73c59d7e0c089c0"
+          )
+        , ( "a"
+          , "bde52cb31de33e46245e05fbdbd6fb24"
+          )
+        , ( "abc"
+          , "a448017aaf21d8525fc10ae87aa6729d"
+          )
+        , ( "message digest"
+          , "d9130a8164549fe818874806e1c7014b"
+          )
+        , ( "abcdefghijklmnopqrstuvwxyz"
+          , "d79e1c308aa5bbcdeea8ed63df412da9"
+          )
+        , ( "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+          , "043f8582f241db351ce627e153e7f0e4"
+          )
+        , ( "12345678901234567890123456789012345678901234567890123456789012345678901234567890"
+          , "e33b4ddc9c38f2199c3e7b164fcc0536"
+          )
+        ]
+    where
+        tc input spec =
+            unHex spec ~=? md4 (string2bs input)
+
+-- | Compute the MD4 digest of a message (not hex-encoded!)
+md4 :: B.ByteString -> B.ByteString
+md4 bs =
+    md4digest $ foldl' md4update md4initState $ chunksOfSize 64 $ prepare bs
+
+data MD4State = MD4S { md4sA :: !Word32
+                     , md4sB :: !Word32
+                     , md4sC :: !Word32
+                     , md4sD :: !Word32
+                     }
+    deriving (Eq, Show)
+
+md4initState :: MD4State
+md4initState = MD4S 0x67452301 0xefcdab89 0x98badcfe 0x10325476
+
+md4digest :: MD4State -> B.ByteString
+md4digest (MD4S a b c d) =
+    B.concat $ map w32BEtoBS [a, b, c, d]
+
+md4_f, md4_g, md4_h :: Word32 -> Word32 -> Word32 -> Word32
+md4_f x y z = (x .&. y) .|. (complement x .&. z)
+md4_g x y z = (x .&. y) .|. (x .&. z) .|. (y .|. z)
+md4_h x y z = x `xor` y `xor` z
+
+md4StateAdd :: MD4State -> MD4State -> MD4State
+md4StateAdd (MD4S xa xb xc xd) (MD4S ya yb yc yd) =
+    MD4S (xa + ya) (xb + yb) (xc + yc) (xd + yd)
+
+md4update :: MD4State -> B.ByteString -> MD4State
+md4update s0 bs =
+    md4StateAdd s0 s'
+        where
+            s' = execState m s0
+            m = do
+                round1 bs
+                round2 bs
+                round3 bs
+
+type Lens r a = (r -> a, a -> r -> r)
+
+lensA, lensB, lensC, lensD :: Lens MD4State Word32
+lensA = (md4sA, \ x r -> r { md4sA = x })
+lensB = (md4sB, \ x r -> r { md4sB = x })
+lensC = (md4sC, \ x r -> r { md4sC = x })
+lensD = (md4sD, \ x r -> r { md4sD = x })
+
+round1, round2, round3 :: B.ByteString -> State MD4State ()
+-- Round 1.
+-- Let [abcd k s] denote the operation
+--      a = (a + F(b,c,d) + X[k]) <<< s.
+-- Do the following 16 operations.
+-- [ABCD  0  3]  [DABC  1  7]  [CDAB  2 11]  [BCDA  3 19]
+-- [ABCD  4  3]  [DABC  5  7]  [CDAB  6 11]  [BCDA  7 19]
+-- [ABCD  8  3]  [DABC  9  7]  [CDAB 10 11]  [BCDA 11 19]
+-- [ABCD 12  3]  [DABC 13  7]  [CDAB 14 11]  [BCDA 15 19]
+round1 bs = do
+    r1step bs lensA lensB lensC lensD   0  3
+    r1step bs lensD lensA lensB lensC   1  7
+    r1step bs lensC lensD lensA lensB   2 11
+    r1step bs lensB lensC lensD lensA   3 19
+    r1step bs lensA lensB lensC lensD   4  3
+    r1step bs lensD lensA lensB lensC   5  7
+    r1step bs lensC lensD lensA lensB   6 11
+    r1step bs lensB lensC lensD lensA   7 19
+    r1step bs lensA lensB lensC lensD   8  3
+    r1step bs lensD lensA lensB lensC   9  7
+    r1step bs lensC lensD lensA lensB  10 11
+    r1step bs lensB lensC lensD lensA  11 19
+    r1step bs lensA lensB lensC lensD  12  3
+    r1step bs lensD lensA lensB lensC  13  7
+    r1step bs lensC lensD lensA lensB  14 11
+    r1step bs lensB lensC lensD lensA  15 19
+
+-- Round 2.
+-- Let [abcd k s] denote the operation
+--   a = (a + G(b,c,d) + X[k] + 5A827999) <<< s.
+--
+-- Do the following 16 operations.
+-- [ABCD  0  3]  [DABC  4  5]  [CDAB  8  9]  [BCDA 12 13]
+-- [ABCD  1  3]  [DABC  5  5]  [CDAB  9  9]  [BCDA 13 13]
+-- [ABCD  2  3]  [DABC  6  5]  [CDAB 10  9]  [BCDA 14 13]
+-- [ABCD  3  3]  [DABC  7  5]  [CDAB 11  9]  [BCDA 15 13]
+round2 bs = do
+    r2step bs lensA lensB lensC lensD   0  3
+    r2step bs lensD lensA lensB lensC   4  5
+    r2step bs lensC lensD lensA lensB   8  9
+    r2step bs lensB lensC lensD lensA  12 13
+    r2step bs lensA lensB lensC lensD   1  3
+    r2step bs lensD lensA lensB lensC   5  5
+    r2step bs lensC lensD lensA lensB   9  9
+    r2step bs lensB lensC lensD lensA  13 13
+    r2step bs lensA lensB lensC lensD   2  3
+    r2step bs lensD lensA lensB lensC   6  5
+    r2step bs lensC lensD lensA lensB  10  9
+    r2step bs lensB lensC lensD lensA  14 13
+    r2step bs lensA lensB lensC lensD   3  3
+    r2step bs lensD lensA lensB lensC   7  5
+    r2step bs lensC lensD lensA lensB  11  9
+    r2step bs lensB lensC lensD lensA  15 13
+
+-- Round 3.
+-- Let [abcd k s] denote the operation
+--   a = (a + H(b,c,d) + X[k] + 6ED9EBA1) <<< s.
+-- Do the following 16 operations.
+-- [ABCD  0  3]  [DABC  8  9]  [CDAB  4 11]  [BCDA 12 15]
+-- [ABCD  2  3]  [DABC 10  9]  [CDAB  6 11]  [BCDA 14 15]
+-- [ABCD  1  3]  [DABC  9  9]  [CDAB  5 11]  [BCDA 13 15]
+-- [ABCD  3  3]  [DABC 11  9]  [CDAB  7 11]  [BCDA 15 15]
+round3 bs = do
+    r3step bs lensA lensB lensC lensD   0  3
+    r3step bs lensD lensA lensB lensC   8  9
+    r3step bs lensC lensD lensA lensB   4 11
+    r3step bs lensB lensC lensD lensA  12 15
+    r3step bs lensA lensB lensC lensD   2  3
+    r3step bs lensD lensA lensB lensC  10  9
+    r3step bs lensC lensD lensA lensB   6 11
+    r3step bs lensB lensC lensD lensA  14 15
+    r3step bs lensA lensB lensC lensD   1  3
+    r3step bs lensD lensA lensB lensC   9  9
+    r3step bs lensC lensD lensA lensB   5 11
+    r3step bs lensB lensC lensD lensA  13 15
+    r3step bs lensA lensB lensC lensD   3  3
+    r3step bs lensD lensA lensB lensC  11  9
+    r3step bs lensC lensD lensA lensB   7 11
+    r3step bs lensB lensC lensD lensA  15 15
+
+r1step, r2step, r3step :: B.ByteString -> Lens MD4State Word32 -> Lens MD4State Word32
+                                       -> Lens MD4State Word32 -> Lens MD4State Word32
+                       -> Int -> Int -> State MD4State ()
+r1step bs (ga, sa) (gb, _) (gc, _) (gd, _) k s =
+    modify $ \ st -> sa ((ga st + md4_f (gb st) (gc st) (gd st) + bsToNthW32BE bs k) `rotateL` s) st
+
+r2step bs (ga, sa) (gb, _) (gc, _) (gd, _) k s =
+    modify $ \ st -> sa ((ga st + md4_g (gb st) (gc st) (gd st) + bsToNthW32BE bs k + 0x5A827999) `rotateL` s) st
+
+r3step bs (ga, sa) (gb, _) (gc, _) (gd, _) k s =
+    modify $ \ st -> sa ((ga st + md4_h (gb st) (gc st) (gd st) + bsToNthW32BE bs k + 0x6ED9EBA1) `rotateL` s) st
