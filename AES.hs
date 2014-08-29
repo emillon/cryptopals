@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 -- | An implementation of the Advanced Encryption Standard on strict ByteStrings.
 
 module AES ( aesTests
@@ -22,8 +20,7 @@ import Data.Array.Unboxed
 import Data.Bits
 import Data.Word
 import Test.HUnit
-import Test.QuickCheck.All
-import Test.QuickCheck.Arbitrary
+import Test.QuickCheck hiding ((.&.))
 
 import qualified Data.ByteString as B
 
@@ -587,8 +584,16 @@ prop_aes128blockInv (GBS16 k) (GBS16 b) =
     aes128decryptBlock k (aes128cryptBlock k b) == b
 
 -- | QuickCheck tests for this module.
-checkAESProps :: IO Bool
-checkAESProps = $quickCheckAll
+checkAESProps :: IO ()
+checkAESProps = do
+    quickCheck prop_addRoundKeyInv
+    quickCheck prop_shiftRowsInv
+    quickCheck prop_subBytesInv
+    quickCheck prop_mixColumnsInv
+    quickCheck prop_aesRoundInv
+    quickCheck prop_joinSplit
+    quickCheck prop_splitJoin
+    quickCheck prop_aes128blockInv
 
 -- | Add a PKCS#7 padding to a bytestring.
 padPkcs7 :: B.ByteString -> B.ByteString

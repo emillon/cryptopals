@@ -2,7 +2,6 @@
 -- for pseudo-random number generation (aka "Mersenne Twister").
 
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module MersenneTwister ( createMT
                        , createMTfromState
@@ -21,7 +20,7 @@ import Data.Bits
 import Data.List
 import Data.Word
 import Test.HUnit
-import Test.QuickCheck.All
+import Test.QuickCheck hiding ((.&.))
 
 import qualified Data.ByteString as B
 
@@ -325,8 +324,13 @@ recoverSeed low hi target =
                 target == evalState nextMT (createMT n)
 
 -- | QuickCheck tests for this module.
-checkMTProps :: IO Bool
-checkMTProps = $quickCheckAll
+checkMTProps :: IO ()
+checkMTProps = do
+    quickCheck prop_temper_f1_inv
+    quickCheck prop_temper_f2_inv
+    quickCheck prop_temper_f3_inv
+    quickCheck prop_temper_f4_inv
+    quickCheck prop_temper_inv
 
 assembleW64 :: Word32 -> Word32 -> Word64
 assembleW64 lo hi =

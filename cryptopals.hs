@@ -497,10 +497,10 @@ main = do
     args <- getArgs
     case args of
         ["-c"] -> do
-            void $ checkAESProps
-            void $ checkMTProps
-            void $ checkMiscProps
-            void $ checkSHA1Props
+            checkAESProps
+            checkMTProps
+            checkMiscProps
+            checkSHA1Props
         _ -> void $ runTestTT $ TestList
             [ chall01
             , chall02

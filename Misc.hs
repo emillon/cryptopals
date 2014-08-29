@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 -- | Miscellaneous functions that are used all around the code.
 
 module Misc ( chunksOfSize
@@ -29,9 +27,7 @@ import Data.Bits
 import Data.Char
 import Data.Word
 import System.Random
-import Test.QuickCheck.All
-import Test.QuickCheck.Arbitrary
-import Test.QuickCheck.Gen
+import Test.QuickCheck hiding ((.&.))
 
 import qualified Data.ByteString as B
 
@@ -148,8 +144,9 @@ prop_w32be_inv w =
     bsToW32BE (w32BEtoBS w) == w
 
 -- | QuickCheck tests for this module.
-checkMiscProps :: IO Bool
-checkMiscProps = $quickCheckAll
+checkMiscProps :: IO ()
+checkMiscProps =
+    quickCheck prop_w32be_inv
 
 -- | Replace part of a bytestring with a new bytestring.
 -- The replaced bytes start at a given offset.
