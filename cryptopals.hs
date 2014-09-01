@@ -505,6 +505,19 @@ chall29 = "Challenge 29" ~:
             oracle = checkSha1PrefixMac key
             (suffix, extendedMac) = sha1Extend oracle message mac extension
 
+chall30 :: Test
+chall30 = "Challenge 30" ~:
+    True ~=? ( checkMd4PrefixMac key extendedMsg extendedMac
+            && extension `B.isSuffixOf` extendedMsg )
+        where
+            key = unHex "fd8a b5ec f235 c17a fa58 7134 2544 15e7"
+            message = string2bs "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon"
+            mac = md4PrefixMac key message
+            extension = string2bs ";admin=true"
+            extendedMsg = B.append message suffix
+            oracle = checkMd4PrefixMac key
+            (suffix, extendedMac) = md4Extend oracle message mac extension
+
 main :: IO ()
 main = do
     args <- getArgs

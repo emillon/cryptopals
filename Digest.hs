@@ -6,7 +6,11 @@ module Digest ( sha1
               , checkSha1PrefixMac
               , checkDigestProps
               , sha1Extend
+              , md4
               , md4Tests
+              , md4PrefixMac
+              , checkMd4PrefixMac
+              , md4Extend
               ) where
 
 import Data.Array
