@@ -6,7 +6,6 @@ module Digest ( sha1
               , checkSha1PrefixMac
               , checkDigestProps
               , sha1Extend
-              , sha1ExtendN
               , md4Tests
               ) where
 
@@ -27,14 +26,14 @@ sha1 :: B.ByteString -> B.ByteString
 sha1 bs =
     digest $ foldl' update initState $ chunksOfSize 64 $ sha1Prepare bs
 
--- | Compute the prefix-MAC of a message under a given key.
+-- | Compute the SHA1 prefix-MAC of a message under a given key.
 sha1PrefixMac :: B.ByteString -- ^ Key
               -> B.ByteString -- ^ Message
               -> B.ByteString
 sha1PrefixMac key message =
     sha1 $ B.append key message
 
--- | Check the validity of a prefix-MAC.
+-- | Check the validity of a SHA1 prefix-MAC.
 checkSha1PrefixMac :: B.ByteString -- ^ Key
                    -> B.ByteString -- ^ Message
                    -> B.ByteString -- ^ MAC
@@ -137,8 +136,8 @@ injectState bs =
             d = bsToNthW32BE bs 3
             e = bsToNthW32BE bs 4
 
-prop_inject_inv :: SHA1State -> Bool
-prop_inject_inv s =
+prop_sha1_inject_inv :: SHA1State -> Bool
+prop_sha1_inject_inv s =
     injectState (digest s) == s
 
 prop_sha1_extension :: GeneratedBSA -> GeneratedBSA -> Property
@@ -150,33 +149,16 @@ prop_sha1_extension (GBSA m) (GBSA e) =
             paddedExt = B.append e $ sha1Padding extended
             originalsha = injectState $ sha1 m
 
--- | Prepare a valid extension for a Hash Extension Attack (knowing key length).
-sha1ExtendN :: Int           -- ^ Len of key
-            -> Int           -- ^ Len of original MAC'd message
-            -> B.ByteString  -- ^ MAC
-            -> B.ByteString  -- ^ Expected extension
-            -> (B.ByteString, B.ByteString) -- ^ (suffix, new MAC)
-sha1ExtendN keyLen msgLen mac ext =
-    (suffix, newMac)
-        where
-            totalLen = keyLen + msgLen
-            suffix = B.append glue ext
-            glue = sha1PaddingLen totalLen
-            paddedExt = B.append ext $ sha1PaddingLen $ totalLen + B.length suffix
-            newMac = digest (update (injectState mac) paddedExt)
-
--- | Prepare a valid extension for a Hash Extension Attack.
+-- | Prepare a valid extension for a Hash Length Extension Attack.
 -- It needs an oracle to check if a MAC is valid (to detect key length).
 sha1Extend :: (B.ByteString -> B.ByteString -> Bool) -- ^ Oracle (takes msg & mac)
            -> B.ByteString  -- ^ Original MAC'd message
            -> B.ByteString  -- ^ MAC
            -> B.ByteString  -- ^ Expected extension
            -> (B.ByteString, B.ByteString) -- ^ (suffix, new MAC)
-sha1Extend oracle message mac ext =
-    head $ filter ok $ map (\ n -> sha1ExtendN n msgLen mac ext) [1..30]
-        where
-            ok (suffix, newMac) = oracle (B.append message suffix) newMac
-            msgLen = B.length message
+sha1Extend = hleExtend sha1PaddingLen injectUpdate
+    where
+        injectUpdate st bs = digest $ update (injectState st) bs
 
 prop_sha1_extension_attack :: GeneratedBS16 -> GeneratedBSA -> GeneratedBSA -> Property
 prop_sha1_extension_attack (GBS16 key) (GBSA message) (GBSA extension) =
@@ -191,9 +173,12 @@ prop_sha1_extension_attack (GBS16 key) (GBSA message) (GBSA extension) =
 -- | QuickCheck tests for this module.
 checkDigestProps :: IO ()
 checkDigestProps = do
-    quickCheck prop_inject_inv
+    quickCheck prop_sha1_inject_inv
     quickCheck prop_sha1_extension
     quickCheck prop_sha1_extension_attack
+    quickCheck prop_md4_inject_inv
+    quickCheck prop_md4_extension
+    quickCheck prop_md4_extension_attack
 
 -- | HUnit tests for the MD4 implementation.
 md4Tests :: Test
@@ -254,6 +239,14 @@ data MD4State = MD4S { md4sA :: !Word32
                      , md4sD :: !Word32
                      }
     deriving (Eq, Show)
+
+instance Arbitrary MD4State where
+    arbitrary = do
+        a <- arbitrary
+        b <- arbitrary
+        c <- arbitrary
+        d <- arbitrary
+        return $ MD4S a b c d
 
 md4initState :: MD4State
 md4initState = MD4S 0x67452301 0xefcdab89 0x98badcfe 0x10325476
@@ -321,3 +314,93 @@ md4rounds x = execRounds
             f1 k s a b c d = (a + md4F b c d + (x!k)) `rotateL` s
             f2 k s a b c d = (a + md4G b c d + (x!k) + 0x5a827999) `rotateL` s
             f3 k s a b c d = (a + md4H b c d + (x!k) + 0x6ed9eba1) `rotateL` s
+
+-- | Compute the MD4 prefix-MAC of a message under a given key.
+md4PrefixMac :: B.ByteString -- ^ Key
+             -> B.ByteString -- ^ Message
+             -> B.ByteString
+md4PrefixMac key message =
+    md4 $ B.append key message
+
+-- | Check the validity of a MD4 prefix-MAC.
+checkMd4PrefixMac :: B.ByteString -- ^ Key
+                  -> B.ByteString -- ^ Message
+                  -> B.ByteString -- ^ MAC
+                  -> Bool
+checkMd4PrefixMac key message mac =
+    md4PrefixMac key message == mac
+
+md4InjectState :: B.ByteString -> MD4State
+md4InjectState bs =
+    MD4S a b c d
+        where
+            a = bsToNthW32LE bs 0
+            b = bsToNthW32LE bs 1
+            c = bsToNthW32LE bs 2
+            d = bsToNthW32LE bs 3
+
+prop_md4_inject_inv :: MD4State -> Bool
+prop_md4_inject_inv s =
+    md4InjectState (md4digest s) == s
+
+prop_md4_extension :: GeneratedBSA -> GeneratedBSA -> Property
+prop_md4_extension (GBSA m) (GBSA e) =
+    (B.length e < 56) ==> md4 extended == md4digest (md4update originalmd4 paddedExt)
+        where
+            extended = B.concat [m, glue, e]
+            glue = md4Padding m
+            paddedExt = B.append e $ md4Padding extended
+            originalmd4 = md4InjectState $ md4 m
+
+prop_md4_extension_attack :: GeneratedBS16 -> GeneratedBSA -> GeneratedBSA -> Property
+prop_md4_extension_attack (GBS16 key) (GBSA message) (GBSA extension) =
+    (B.length extension < 56) ==>
+    checkMd4PrefixMac key extMsg extMac && extension `B.isSuffixOf` extMsg
+        where
+            mac = md4PrefixMac key message
+            oracle = checkMd4PrefixMac key
+            (suffix, extMac) = md4Extend oracle message mac extension
+            extMsg = B.append message suffix
+
+hleExtendN :: (Int -> B.ByteString) -- ^ Padding function
+           -> (B.ByteString -> B.ByteString -> B.ByteString)
+           -- ^ Inject+update function. Takes state and bs and return new state.
+           -> Int                   -- ^ Len of key
+           -> Int                   -- ^ Len of original MAC'd message
+           -> B.ByteString          -- ^ MAC
+           -> B.ByteString          -- ^ Expected extension
+           -> (B.ByteString, B.ByteString) -- ^ (suffix, new MAC)
+hleExtendN paddingLen injectUpdate keyLen msgLen mac ext =
+    (suffix, newMac)
+        where
+            totalLen = keyLen + msgLen
+            suffix = B.append glue ext
+            glue = paddingLen totalLen
+            paddedExt = B.append ext $ paddingLen $ totalLen + B.length suffix
+            newMac = injectUpdate mac paddedExt
+
+-- | Prepare a valid extension for a Hash Length Extension Attack (MD4).
+-- It needs an oracle to check if a MAC is valid (to detect key length).
+md4Extend :: (B.ByteString -> B.ByteString -> Bool) -- ^ Oracle (takes msg & mac)
+          -> B.ByteString  -- ^ Original MAC'd message
+          -> B.ByteString  -- ^ MAC
+          -> B.ByteString  -- ^ Expected extension
+          -> (B.ByteString, B.ByteString) -- ^ (suffix, new MAC)
+md4Extend =
+    hleExtend md4PaddingLen injectUpdate
+        where
+            injectUpdate st bs = md4digest $ md4update (md4InjectState st) bs
+
+hleExtend :: (Int -> B.ByteString) -- ^ Padding function
+          -> (B.ByteString -> B.ByteString -> B.ByteString)
+          -- ^ Inject+update function. Takes state and bs and return new state.
+          -> (B.ByteString -> B.ByteString -> Bool) -- ^ Oracle (takes msg & mac)
+          -> B.ByteString -- ^ Original MAC'd message
+          -> B.ByteString -- ^ MAC
+          -> B.ByteString -- ^ Expected extension
+          -> (B.ByteString, B.ByteString) -- ^ (suffix, new MAC)
+hleExtend paddingLen injectUpdate oracle message mac ext =
+    head $ filter ok $ map (\ n -> hleExtendN paddingLen injectUpdate n msgLen mac ext) [1..30]
+        where
+            ok (suffix, newMac) = oracle (B.append message suffix) newMac
+            msgLen = B.length message
