@@ -332,10 +332,6 @@ checkMTProps = do
     quickCheck prop_temper_f4_inv
     quickCheck prop_temper_inv
 
-assembleW64 :: Word32 -> Word32 -> Word64
-assembleW64 lo hi =
-    fromIntegral lo .|. (fromIntegral hi `shiftL` 32)
-
 -- | The MT19937 CTR "cipher" crypt function.
 mt19937cryptCTR :: Word16       -- ^ Key
                 -> B.ByteString -- ^ Plaintext
@@ -351,8 +347,8 @@ mt19937cryptCTR key plain =
                 b <- nextMT
                 c <- nextMT
                 d <- nextMT
-                let ab = w64LEtoBS $ assembleW64 a b
-                    cd = w64LEtoBS $ assembleW64 c d
+                let ab = w64LEtoBS $ joinW64 a b
+                    cd = w64LEtoBS $ joinW64 c d
                 return $ B.append ab cd
 
 -- | The MT19937 CTR "cipher" decrypt function.

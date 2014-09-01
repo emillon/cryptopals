@@ -10,7 +10,6 @@ module Digest ( sha1
               , md4Tests
               ) where
 
-import Control.Monad.State
 import Data.Array
 import Data.Bits
 import Data.List
@@ -26,7 +25,7 @@ import Misc
 -- | Compute the SHA1 digest of a message (not hex-encoded!)
 sha1 :: B.ByteString -> B.ByteString
 sha1 bs =
-    digest $ foldl' update initState $ chunksOfSize 64 $ prepare bs
+    digest $ foldl' update initState $ chunksOfSize 64 $ sha1Prepare bs
 
 -- | Compute the prefix-MAC of a message under a given key.
 sha1PrefixMac :: B.ByteString -- ^ Key
@@ -43,15 +42,15 @@ checkSha1PrefixMac :: B.ByteString -- ^ Key
 checkSha1PrefixMac key message mac =
     sha1PrefixMac key message == mac
 
-prepare :: B.ByteString -> B.ByteString
-prepare bs =
-    B.append bs $ padding bs
+sha1Prepare :: B.ByteString -> B.ByteString
+sha1Prepare bs =
+    B.append bs $ sha1Padding bs
 
-padding :: B.ByteString -> B.ByteString
-padding = paddingLen . B.length
+sha1Padding :: B.ByteString -> B.ByteString
+sha1Padding = sha1PaddingLen . B.length
 
-paddingLen :: Int -> B.ByteString
-paddingLen n =
+sha1PaddingLen :: Int -> B.ByteString
+sha1PaddingLen n =
     B.concat [B.singleton 0x80, pad, size]
         where
             modsize = (n+1) `mod` 64
@@ -147,8 +146,8 @@ prop_sha1_extension (GBSA m) (GBSA e) =
     (B.length e < 56) ==> sha1 extended == digest (update originalsha paddedExt)
         where
             extended = B.concat [m, glue, e]
-            glue = padding m
-            paddedExt = B.append e $ padding extended
+            glue = sha1Padding m
+            paddedExt = B.append e $ sha1Padding extended
             originalsha = injectState $ sha1 m
 
 -- | Prepare a valid extension for a Hash Extension Attack (knowing key length).
@@ -162,8 +161,8 @@ sha1ExtendN keyLen msgLen mac ext =
         where
             totalLen = keyLen + msgLen
             suffix = B.append glue ext
-            glue = paddingLen totalLen
-            paddedExt = B.append ext $ paddingLen $ totalLen + B.length suffix
+            glue = sha1PaddingLen totalLen
+            paddedExt = B.append ext $ sha1PaddingLen $ totalLen + B.length suffix
             newMac = digest (update (injectState mac) paddedExt)
 
 -- | Prepare a valid extension for a Hash Extension Attack.
@@ -229,7 +228,25 @@ md4Tests =
 -- | Compute the MD4 digest of a message (not hex-encoded!)
 md4 :: B.ByteString -> B.ByteString
 md4 bs =
-    md4digest $ foldl' md4update md4initState $ chunksOfSize 64 $ prepare bs
+    md4digest $ foldl' md4update md4initState $ chunksOfSize (16*4) $ md4Prepare bs
+
+md4Prepare :: B.ByteString -> B.ByteString
+md4Prepare bs =
+    B.append bs $ md4Padding bs
+
+md4Padding :: B.ByteString -> B.ByteString
+md4Padding = md4PaddingLen . B.length
+
+md4PaddingLen :: Int -> B.ByteString
+md4PaddingLen n =
+    B.concat [B.singleton 0x80, pad, sizelo, sizehi]
+        where
+            modsize = (n+1) `mod` 64
+            npad = (56 - modsize) `mod` 64
+            pad = B.replicate npad 0x00
+            sizelo = w32LEtoBS lo
+            sizehi = w32LEtoBS hi
+            (lo, hi) = splitW64 $ fromIntegral $ 8 * n
 
 data MD4State = MD4S { md4sA :: !Word32
                      , md4sB :: !Word32
@@ -243,12 +260,12 @@ md4initState = MD4S 0x67452301 0xefcdab89 0x98badcfe 0x10325476
 
 md4digest :: MD4State -> B.ByteString
 md4digest (MD4S a b c d) =
-    B.concat $ map w32BEtoBS [a, b, c, d]
+    B.concat $ map w32LEtoBS [a, b, c, d]
 
-md4_f, md4_g, md4_h :: Word32 -> Word32 -> Word32 -> Word32
-md4_f x y z = (x .&. y) .|. (complement x .&. z)
-md4_g x y z = (x .&. y) .|. (x .&. z) .|. (y .|. z)
-md4_h x y z = x `xor` y `xor` z
+md4F, md4G, md4H :: Word32 -> Word32 -> Word32 -> Word32
+md4F x y z = (x .&. y) .|. (complement x .&. z)
+md4G x y z = (x .&. y) .|. (x .&. z) .|. (y .&. z)
+md4H x y z = x `xor` y `xor` z
 
 md4StateAdd :: MD4State -> MD4State -> MD4State
 md4StateAdd (MD4S xa xb xc xd) (MD4S ya yb yc yd) =
@@ -258,11 +275,8 @@ md4update :: MD4State -> B.ByteString -> MD4State
 md4update s0 bs =
     md4StateAdd s0 s'
         where
-            s' = execState m s0
-            m = do
-                round1 bs
-                round2 bs
-                round3 bs
+            s' = md4rounds x s0
+            x = listArray (0, 15) $ map (bsToNthW32LE bs) [0..15]
 
 type Lens r a = (r -> a, a -> r -> r)
 
@@ -272,94 +286,38 @@ lensB = (md4sB, \ x r -> r { md4sB = x })
 lensC = (md4sC, \ x r -> r { md4sC = x })
 lensD = (md4sD, \ x r -> r { md4sD = x })
 
-round1, round2, round3 :: B.ByteString -> State MD4State ()
--- Round 1.
--- Let [abcd k s] denote the operation
---      a = (a + F(b,c,d) + X[k]) <<< s.
--- Do the following 16 operations.
--- [ABCD  0  3]  [DABC  1  7]  [CDAB  2 11]  [BCDA  3 19]
--- [ABCD  4  3]  [DABC  5  7]  [CDAB  6 11]  [BCDA  7 19]
--- [ABCD  8  3]  [DABC  9  7]  [CDAB 10 11]  [BCDA 11 19]
--- [ABCD 12  3]  [DABC 13  7]  [CDAB 14 11]  [BCDA 15 19]
-round1 bs = do
-    r1step bs lensA lensB lensC lensD   0  3
-    r1step bs lensD lensA lensB lensC   1  7
-    r1step bs lensC lensD lensA lensB   2 11
-    r1step bs lensB lensC lensD lensA   3 19
-    r1step bs lensA lensB lensC lensD   4  3
-    r1step bs lensD lensA lensB lensC   5  7
-    r1step bs lensC lensD lensA lensB   6 11
-    r1step bs lensB lensC lensD lensA   7 19
-    r1step bs lensA lensB lensC lensD   8  3
-    r1step bs lensD lensA lensB lensC   9  7
-    r1step bs lensC lensD lensA lensB  10 11
-    r1step bs lensB lensC lensD lensA  11 19
-    r1step bs lensA lensB lensC lensD  12  3
-    r1step bs lensD lensA lensB lensC  13  7
-    r1step bs lensC lensD lensA lensB  14 11
-    r1step bs lensB lensC lensD lensA  15 19
+type Lens4 = (Lens MD4State Word32, Lens MD4State Word32, Lens MD4State Word32, Lens MD4State Word32)
 
--- Round 2.
--- Let [abcd k s] denote the operation
---   a = (a + G(b,c,d) + X[k] + 5A827999) <<< s.
---
--- Do the following 16 operations.
--- [ABCD  0  3]  [DABC  4  5]  [CDAB  8  9]  [BCDA 12 13]
--- [ABCD  1  3]  [DABC  5  5]  [CDAB  9  9]  [BCDA 13 13]
--- [ABCD  2  3]  [DABC  6  5]  [CDAB 10  9]  [BCDA 14 13]
--- [ABCD  3  3]  [DABC  7  5]  [CDAB 11  9]  [BCDA 15 13]
-round2 bs = do
-    r2step bs lensA lensB lensC lensD   0  3
-    r2step bs lensD lensA lensB lensC   4  5
-    r2step bs lensC lensD lensA lensB   8  9
-    r2step bs lensB lensC lensD lensA  12 13
-    r2step bs lensA lensB lensC lensD   1  3
-    r2step bs lensD lensA lensB lensC   5  5
-    r2step bs lensC lensD lensA lensB   9  9
-    r2step bs lensB lensC lensD lensA  13 13
-    r2step bs lensA lensB lensC lensD   2  3
-    r2step bs lensD lensA lensB lensC   6  5
-    r2step bs lensC lensD lensA lensB  10  9
-    r2step bs lensB lensC lensD lensA  14 13
-    r2step bs lensA lensB lensC lensD   3  3
-    r2step bs lensD lensA lensB lensC   7  5
-    r2step bs lensC lensD lensA lensB  11  9
-    r2step bs lensB lensC lensD lensA  15 13
+abcd, dabc, cdab, bcda :: Lens4
+abcd = (lensA, lensB, lensC, lensD)
+dabc = (lensD, lensA, lensB, lensC)
+cdab = (lensC, lensD, lensA, lensB)
+bcda = (lensB, lensC, lensD, lensA)
 
--- Round 3.
--- Let [abcd k s] denote the operation
---   a = (a + H(b,c,d) + X[k] + 6ED9EBA1) <<< s.
--- Do the following 16 operations.
--- [ABCD  0  3]  [DABC  8  9]  [CDAB  4 11]  [BCDA 12 15]
--- [ABCD  2  3]  [DABC 10  9]  [CDAB  6 11]  [BCDA 14 15]
--- [ABCD  1  3]  [DABC  9  9]  [CDAB  5 11]  [BCDA 13 15]
--- [ABCD  3  3]  [DABC 11  9]  [CDAB  7 11]  [BCDA 15 15]
-round3 bs = do
-    r3step bs lensA lensB lensC lensD   0  3
-    r3step bs lensD lensA lensB lensC   8  9
-    r3step bs lensC lensD lensA lensB   4 11
-    r3step bs lensB lensC lensD lensA  12 15
-    r3step bs lensA lensB lensC lensD   2  3
-    r3step bs lensD lensA lensB lensC  10  9
-    r3step bs lensC lensD lensA lensB   6 11
-    r3step bs lensB lensC lensD lensA  14 15
-    r3step bs lensA lensB lensC lensD   1  3
-    r3step bs lensD lensA lensB lensC   9  9
-    r3step bs lensC lensD lensA lensB   5 11
-    r3step bs lensB lensC lensD lensA  13 15
-    r3step bs lensA lensB lensC lensD   3  3
-    r3step bs lensD lensA lensB lensC  11  9
-    r3step bs lensC lensD lensA lensB   7 11
-    r3step bs lensB lensC lensD lensA  15 15
+execRounds :: [(Int -> Int -> Word32 -> Word32 -> Word32 -> Word32 -> Word32,
+                Lens4, Int, Int)]
+              -> MD4State -> MD4State
+execRounds rs s0 = foldl' go s0 rs
+    where
+        go st (f, ((ga, sa), (gb, _), (gc, _), (gd, _)), xk, s) =
+            sa (f xk s (ga st) (gb st) (gc st) (gd st)) st
 
-r1step, r2step, r3step :: B.ByteString -> Lens MD4State Word32 -> Lens MD4State Word32
-                                       -> Lens MD4State Word32 -> Lens MD4State Word32
-                       -> Int -> Int -> State MD4State ()
-r1step bs (ga, sa) (gb, _) (gc, _) (gd, _) k s =
-    modify $ \ st -> sa ((ga st + md4_f (gb st) (gc st) (gd st) + bsToNthW32BE bs k) `rotateL` s) st
-
-r2step bs (ga, sa) (gb, _) (gc, _) (gd, _) k s =
-    modify $ \ st -> sa ((ga st + md4_g (gb st) (gc st) (gd st) + bsToNthW32BE bs k + 0x5A827999) `rotateL` s) st
-
-r3step bs (ga, sa) (gb, _) (gc, _) (gd, _) k s =
-    modify $ \ st -> sa ((ga st + md4_h (gb st) (gc st) (gd st) + bsToNthW32BE bs k + 0x6ED9EBA1) `rotateL` s) st
+md4rounds :: Array Int Word32 -> MD4State -> MD4State
+md4rounds x = execRounds
+    [ (f1, abcd,  0,  3), (f1, dabc,  1,  7), (f1, cdab,  2, 11), (f1, bcda,  3, 19)
+    , (f1, abcd,  4,  3), (f1, dabc,  5,  7), (f1, cdab,  6, 11), (f1, bcda,  7, 19)
+    , (f1, abcd,  8,  3), (f1, dabc,  9,  7), (f1, cdab, 10, 11), (f1, bcda, 11, 19)
+    , (f1, abcd, 12,  3), (f1, dabc, 13,  7), (f1, cdab, 14, 11), (f1, bcda, 15, 19)
+    , (f2, abcd,  0,  3), (f2, dabc,  4,  5), (f2, cdab,  8,  9), (f2, bcda, 12, 13)
+    , (f2, abcd,  1,  3), (f2, dabc,  5,  5), (f2, cdab,  9,  9), (f2, bcda, 13, 13)
+    , (f2, abcd,  2,  3), (f2, dabc,  6,  5), (f2, cdab, 10,  9), (f2, bcda, 14, 13)
+    , (f2, abcd,  3,  3), (f2, dabc,  7,  5), (f2, cdab, 11,  9), (f2, bcda, 15, 13)
+    , (f3, abcd,  0,  3), (f3, dabc,  8,  9), (f3, cdab,  4, 11), (f3, bcda, 12, 15)
+    , (f3, abcd,  2,  3), (f3, dabc, 10,  9), (f3, cdab,  6, 11), (f3, bcda, 14, 15)
+    , (f3, abcd,  1,  3), (f3, dabc,  9,  9), (f3, cdab,  5, 11), (f3, bcda, 13, 15)
+    , (f3, abcd,  3,  3), (f3, dabc, 11,  9), (f3, cdab,  7, 11), (f3, bcda, 15, 15)
+    ]
+        where
+            f1 k s a b c d = (a + md4F b c d + (x!k)) `rotateL` s
+            f2 k s a b c d = (a + md4G b c d + (x!k) + 0x5a827999) `rotateL` s
+            f3 k s a b c d = (a + md4H b c d + (x!k) + 0x6ed9eba1) `rotateL` s

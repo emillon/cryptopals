@@ -14,11 +14,15 @@ module Misc ( chunksOfSize
             , w64BEtoBS
             , nTimesA
             , bsToNthW32BE
+            , bsToNthW32LE
             , w32BEtoBS
+            , w32LEtoBS
             , checkMiscProps
             , spliceBS
             , GeneratedBS16(..)
             , GeneratedBSA(..)
+            , joinW64
+            , splitW64
             ) where
 
 import Control.Applicative
@@ -143,10 +147,59 @@ prop_w32be_inv :: Word32 -> Bool
 prop_w32be_inv w =
     bsToW32BE (w32BEtoBS w) == w
 
+-- | Convert a Word32 to a bytestring, in little endian order.
+w32LEtoBS :: Word32 -> B.ByteString
+w32LEtoBS =
+    B.reverse . w32BEtoBS
+
+-- | Fetch the nth 32-bit word in a bytestring, in little endian order.
+bsToNthW32LE :: B.ByteString -> Int -> Word32
+bsToNthW32LE bs n =
+    let bl = B.length bs in
+    if bl < 4*(n+1) then
+        error $ "bsToNthW32LE(n=" ++ show n ++ ") : bytestring has length " ++ show bl
+    else
+        bsToW32LE $ B.take 4 $ B.drop (4*n) bs
+
+bsToW32LE :: B.ByteString -> Word32
+bsToW32LE =
+    bsToW32BE . B.reverse
+
+prop_w32le_inv :: Word32 -> Bool
+prop_w32le_inv w =
+    bsToW32LE (w32LEtoBS w) == w
+
+-- | Make a 64-bit word from two 32-bit words.
+joinW64 :: Word32 -- ^ lo part
+        -> Word32 -- ^ hi part
+        -> Word64
+joinW64 lo hi =
+    fromIntegral lo .|. (fromIntegral hi `shiftL` 32)
+
+-- | Split a 64-bit into two 32-bit words.
+splitW64 :: Word64
+         -> (Word32, Word32) -- ^ (lo, hi)
+splitW64 w =
+    (lo, hi)
+        where
+            lo = fromIntegral $ (w .&. 0xffffffff)
+            hi = fromIntegral $ (w .&. 0xffffffff00000000) `shiftR` 32
+
+prop_w64_split_join :: Word64 -> Bool
+prop_w64_split_join w =
+    uncurry joinW64 (splitW64 w) == w
+
+prop_w64_join_split :: Word32 -> Word32 -> Bool
+prop_w64_join_split lo hi =
+    splitW64 (joinW64 lo hi) == (lo, hi)
+
 -- | QuickCheck tests for this module.
 checkMiscProps :: IO ()
-checkMiscProps =
+checkMiscProps = do
     quickCheck prop_w32be_inv
+    quickCheck prop_w32le_inv
+    quickCheck prop_w64_split_join
+    quickCheck prop_w64_join_split
 
 -- | Replace part of a bytestring with a new bytestring.
 -- The replaced bytes start at a given offset.
