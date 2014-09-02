@@ -45,3 +45,25 @@ http://cryptopals.com/
   - [X] [Break an MD4 keyed MAC using length extension](http://cryptopals.com/sets/4/challenges/30/)
   - [ ] [Implement and break HMAC-SHA1 with an artificial timing leak](http://cryptopals.com/sets/4/challenges/31/)
   - [ ] [Break HMAC-SHA1 with a slightly less artificial timing leak](http://cryptopals.com/sets/4/challenges/32/)
+
+## Set 5
+
+  - [ ] [Implement Diffie-Hellman](http://cryptopals.com/sets/5/challenges/33)
+  - [ ] [Implement a MITM key-fixing attack on Diffie-Hellman with parameter injection](http://cryptopals.com/sets/5/challenges/34)
+  - [ ] [Implement DH with negotiated groups, and break with malicious "g" parameters](http://cryptopals.com/sets/5/challenges/35)
+  - [ ] [Implement Secure Remote Password (SRP)](http://cryptopals.com/sets/5/challenges/36)
+  - [ ] [Break SRP with a zero key](http://cryptopals.com/sets/5/challenges/37)
+  - [ ] [Offline dictionary attack on simplified SRP](http://cryptopals.com/sets/5/challenges/38)
+  - [ ] [Implement RSA](http://cryptopals.com/sets/5/challenges/39)
+  - [ ] [Implement an E=3 RSA Broadcast attack](http://cryptopals.com/sets/5/challenges/40)
+
+## Set 6
+
+  - [ ] [Implement unpadded message recovery oracle](http://cryptopals.com/sets/6/challenges/41)
+  - [ ] [Bleichenbacher's e=3 RSA Attack](http://cryptopals.com/sets/6/challenges/42)
+  - [ ] [DSA key recovery from nonce](http://cryptopals.com/sets/6/challenges/43)
+  - [ ] [DSA nonce recovery from repeated nonce](http://cryptopals.com/sets/6/challenges/44)
+  - [ ] [DSA parameter tampering](http://cryptopals.com/sets/6/challenges/45)
+  - [ ] [RSA parity oracle](http://cryptopals.com/sets/6/challenges/46)
+  - [ ] [Bleichenbacher's PKCS 1.5 Padding Oracle (Simple Case)](http://cryptopals.com/sets/6/challenges/47)
+  - [ ] [Bleichenbacher's PKCS 1.5 Padding Oracle (Complete Case)](http://cryptopals.com/sets/6/challenges/48)
