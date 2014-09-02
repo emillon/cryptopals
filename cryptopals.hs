@@ -492,6 +492,39 @@ chall25 = TestCase $ do
     let res = map (chr . fromIntegral) $ take 16 $ breakCTRedit cipher edit
     assertEqual "Challenge 25" "I'm back and I'm" res
 
+c27key :: B.ByteString
+c27key = unHex "8880 68a8 5e95 2022 897c 3268 a30e 2fdc"
+
+c27encrypt :: B.ByteString -> B.ByteString
+c27encrypt input =
+    aes128cryptCBC c27key c27key input
+
+c27decrypt :: B.ByteString -> Maybe B.ByteString
+c27decrypt cookie =
+    let plain = aes128decryptCBC c27key c27key cookie in
+    if B.any (>= 0x80) plain then
+       Just plain
+    else
+        Nothing
+
+chall27 :: Test
+chall27 =
+    "Challenge 27" ~: c27key ~=? recKey
+        where
+            plain = B.concat [ B.replicate 16 0x41
+                             , B.replicate 16 0x42
+                             ]
+            cipher = c27encrypt plain
+            c1 = nthChunk 16 0 cipher
+            cipher' = B.concat [ c1
+                               , B.replicate 16 0x00
+                               , c1
+                               ]
+            plain' = fromJust $ c27decrypt cipher'
+            p'1 = nthChunk 16 0 plain'
+            p'3 = nthChunk 16 2 plain'
+            recKey = p'1 `xorBuffer` p'3
+
 chall29 :: Test
 chall29 = "Challenge 29" ~:
     True ~=? ( checkSha1PrefixMac key extendedMsg extendedMac
@@ -551,6 +584,7 @@ main = do
             , chall22
             , chall23
             , chall25
+            , chall27
             , sha1Tests
             , chall29
             , md4Tests

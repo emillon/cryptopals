@@ -39,7 +39,7 @@ http://cryptopals.com/
 
   - [X] [Break "random access read/write" AES CTR](http://cryptopals.com/sets/4/challenges/25/)
   - [ ] [CTR bitflipping](http://cryptopals.com/sets/4/challenges/26/)
-  - [ ] [Recover the key from CBC with IV=Key](http://cryptopals.com/sets/4/challenges/27/)
+  - [X] [Recover the key from CBC with IV=Key](http://cryptopals.com/sets/4/challenges/27/)
   - [X] [Implement a SHA-1 keyed MAC](http://cryptopals.com/sets/4/challenges/28/)
   - [X] [Break a SHA-1 keyed MAC using length extension](http://cryptopals.com/sets/4/challenges/29/)
   - [X] [Break an MD4 keyed MAC using length extension](http://cryptopals.com/sets/4/challenges/30/)
