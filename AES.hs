@@ -6,6 +6,7 @@ module AES ( aesTests
            , aes128cryptECB
            , aes128cryptCBC
            , checkAESProps
+           , isECB
            , padPkcs7
            , checkPadPkcs7
            , zeroIV
@@ -23,6 +24,7 @@ import Test.HUnit
 import Test.QuickCheck hiding ((.&.))
 
 import qualified Data.ByteString as B
+import qualified Data.Map as M
 
 import Base64
 import Misc
@@ -594,6 +596,14 @@ checkAESProps = do
     quickCheck prop_joinSplit
     quickCheck prop_splitJoin
     quickCheck prop_aes128blockInv
+
+-- | Detect if a bytestring has been encoded using ECB mode.
+isECB :: B.ByteString -> Bool
+isECB =
+    any (> 1) . M.elems . foldr go M.empty . chunksOfSize 16
+        where
+            go chunk m =
+                M.insertWith (+) chunk (1::Int) m
 
 -- | Add a PKCS#7 padding to a bytestring.
 padPkcs7 :: B.ByteString -> B.ByteString
